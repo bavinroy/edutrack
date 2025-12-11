@@ -1,0 +1,7 @@
+echo ".idea/
+.vscode/
+__pycache__/
+*.pyc
+.env
+.venv
+node_modules/" > .gitignore

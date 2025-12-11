@@ -1,0 +1,48 @@
+python manage.py runserver 0.0.0.0:8000
+http://127.0.0.1:8000/api/admin/create-staff/
+http://10.49.202.125:8000/api/token/
+
+
+
+import React from "react";
+import { View, Text, Button, StyleSheet, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useLocalSearchParams } from "expo-router";
+
+export default function StudentDashboard() {
+  const router = useRouter();
+  const { token } = useLocalSearchParams<{ token: string }>();
+
+  const handleLogout = async () => {
+    await AsyncStorage.clear();
+    router.replace("/login"); // navigate back to login screen
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🎓 Student Dashboard</Text>
+      <Text style={styles.subtitle}>Token: {token?.substring(0, 15)}...</Text>
+
+      <Button title="View Profile" onPress={() => router.push("/student/profile")} />
+      <Button title="Check Results" onPress={() => Alert.alert("Coming soon")} />
+      <Button title="Documents" onPress={() => router.push("/student/documents")} />
+      <Button title="Downloads" onPress={() => router.push("/student/downloads")} />
+      <Button title="Fees & Terms" onPress={() => router.push("/student/fees")} />
+      <Button title="Time Table" onPress={() => router.push("/student/time table")} />
+      <Button title="letters" onPress={() => router.push("/student/letter")} />
+      <Button title="Requests" onPress={() => router.push("/student/requests")} />
+      <Button title="Notice Board" onPress={() => router.push("/student/notice")} />
+      <Button title="test screen" onPress={() => router.push("/student/test")} />
+
+      <View style={{ marginTop: 20 }}>
+        <Button title="Logout" onPress={handleLogout} color="red" />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
+  subtitle: { fontSize: 16, marginBottom: 20 },
+});
