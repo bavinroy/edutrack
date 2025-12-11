@@ -1,7 +1,13 @@
-echo ".idea/
+.idea/
 .vscode/
 __pycache__/
 *.pyc
 .env
 .venv
-node_modules/" > .gitignore
+env/
+venv/
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
