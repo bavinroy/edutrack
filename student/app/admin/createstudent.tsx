@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet, ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 export default function CreateStudentScreen() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function CreateStudentScreen() {
     }
 
     try {
-      const res = await fetch("http://10.193.11.125:8000/api/admin/create-student/", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/create-student/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

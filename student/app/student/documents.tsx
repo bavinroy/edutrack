@@ -14,6 +14,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 interface Document {
   id: number;
@@ -39,7 +40,7 @@ export default function StudentDocuments() {
     const token = await AsyncStorage.getItem("accessToken");
     try {
       const res = await fetch(
-        "http://10.193.11.125:8000/api/accounts/documents/list/",
+        `${API_BASE_URL}/api/accounts/documents/list/`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Failed to fetch documents");
@@ -49,7 +50,7 @@ export default function StudentDocuments() {
         ...doc,
         file: doc.file.startsWith("http")
           ? doc.file
-          : `http://10.193.11.125:8000${doc.file}`,
+          : `${API_BASE_URL}${doc.file}`,
       }));
 
       setTimeout(() => {

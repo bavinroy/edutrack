@@ -102,6 +102,27 @@ export default function AdminDashboard() {
           <Text style={styles.menuText}>NOTICE BOARD</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => handleNav("/admin/departments")}
+        >
+          <Text style={styles.menuText}>MANAGE DEPARTMENTS</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => handleNav("/admin/django_admin")}
+        >
+          <Text style={styles.menuText}>ADMINISTRATOR</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => handleNav("/admin/bulk_upload")}
+        >
+          <Text style={styles.menuText}>BULK UPLOAD USERS</Text>
+        </TouchableOpacity>
+
       </View>
 
       {/* 🔹 Bottom Navigation */}

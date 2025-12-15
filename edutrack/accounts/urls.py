@@ -7,6 +7,8 @@ from .views import TimeTableListCreateView, TimeTableRetrieveUpdateDestroyView, 
 from .views import LetterListCreateView, LetterDetailView
 from .views import CreateRequestView, StudentRequestsListView, StaffRequestsListView,StaffActionView, AdminActionView, AdminRequestsListView
 from .views import NoticeCreateView, NoticeListView, NoticeDeleteView, NoticeAcknowledgeView, NoticeCommentView, NoticeCommentDeleteView, NoticeCommentEditView
+from .views import CreateDeptAdminView, CreateDeptStaffView, CreateDeptStudentView, BulkUploadUsersView
+from .views import DepartmentListCreateView, DepartmentDetailView
 
 urlpatterns = [
     # JWT Authentication
@@ -16,12 +18,16 @@ urlpatterns = [
     path("documents/delete/<int:pk>/", DocumentDeleteView.as_view(), name="delete_document"),
     path("documents/upload/", DocumentUploadView.as_view(), name="upload_document"),  # staff
     path("documents/list/", DocumentListView.as_view(), name="list_documents"),
+    path("timetables/parse/", views.ParseTimetableView.as_view(), name="timetable-parse"),
     path("timetables/", TimeTableListCreateView.as_view(), name="timetable-list-create"),
     path("timetables/<int:pk>/", TimeTableRetrieveUpdateDestroyView.as_view(), name="timetable-detail"),
     path("student/timetables/", StudentTimeTableListView.as_view(), name="student-timetable-list"),
     path("student/timetables/<int:pk>/", StudentTimeTableDetailView.as_view(), name="student-timetable-detail"),
     path("timetables/view/", TimeTableListView.as_view(), name="timetable-list"),
     path("timetables/<int:pk>/delete/", TimeTableDeleteView.as_view(), name="timetable-delete"),
+    path("timetables/<int:pk>/publish/", views.TimeTablePublishView.as_view(), name="timetable-publish"),
+    path("timetables/<int:pk>/verify/", views.TimeTableVerifyView.as_view(), name="timetable-verify"),
+    path("timetables/pending/", views.DeptPendingTimeTableView.as_view(), name="timetable-pending"),
     
     path("letters/", LetterListCreateView.as_view(), name="letter-list-create"),
     path("letters/<int:pk>/", LetterDetailView.as_view(), name="letter-detail"),
@@ -48,5 +54,13 @@ urlpatterns = [
     # optional:
     # path("requests/", AllRequestsListView.as_view(), name="requests_list"),
     # Whoami endpoint
+    # User Creation & Bulk Upload
+    path("create/dept-admin/", CreateDeptAdminView.as_view(), name="create-dept-admin"),
+    path("create/dept-staff/", CreateDeptStaffView.as_view(), name="create-dept-staff"),
+    path("create/dept-student/", CreateDeptStudentView.as_view(), name="create-dept-student"),
+    path("bulk-upload/", BulkUploadUsersView.as_view(), name="bulk-upload-users"),
+    path("departments/", DepartmentListCreateView.as_view(), name="department-list-create"),
+    path("departments/<int:pk>/", DepartmentDetailView.as_view(), name="department-detail"),
+
     path("whoami/", whoami, name="whoami"),
 ]

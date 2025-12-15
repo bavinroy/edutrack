@@ -16,6 +16,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Letter = { id: number; title: string; content: string; created_at: string };
 type Request = {
@@ -47,7 +48,7 @@ export default function AdminRequestsScreen() {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
 
-      const res = await fetch("http://10.193.11.125:8000/api/request/admin/list/", {
+      const res = await fetch(`${API_BASE_URL}/api/request/admin/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -70,7 +71,7 @@ export default function AdminRequestsScreen() {
       if (!token) return;
 
       const res = await fetch(
-        `http://10.193.11.125:8000/api/request/admin/${requestId}/`,
+        `${API_BASE_URL}/api/request/admin/${requestId}/`,
         {
           method: "PATCH",
           headers: {

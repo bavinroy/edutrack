@@ -89,6 +89,10 @@ export default function StaffDashboard() {
         <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/staff/requests")}>
           <Text style={styles.menuText}>MANAGE REQUESTS</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/staff/bulk_upload")}>
+          <Text style={styles.menuText}>BULK UPLOAD STUDENTS</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 🔹 Bottom Navigation */}

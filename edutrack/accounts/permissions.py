@@ -1,87 +1,94 @@
-# accounts/permissions.py
-from rest_framework.permissions import BasePermission
-# timetables/permissions.py
 from rest_framework import permissions
 
-class IsStaffOrAdmin(permissions.BasePermission):
+class IsSuperAdmin(permissions.BasePermission):
     """
-    Allow safe methods to everyone authenticated; create/update/delete only staff or admin.
-    Assumes your User model has a 'role' attribute or 'is_staff' flag.
-    Adjust checks to fit your project's user model.
+    Allows access only to superuser or SUPER_ADMIN role.
     """
     def has_permission(self, request, view):
-        # Allow GET/HEAD/OPTIONS to authenticated users (students too)
-        if request.method in permissions.SAFE_METHODS:
-            return request.user and request.user.is_authenticated
-
-        # For write operations require staff or superuser:
-        if not request.user or not request.user.is_authenticated:
-            return False
-
-        # adapt to your User model: either check `is_staff` or `role`
-        if getattr(request.user, "is_superuser", False):
-            return True
-        if getattr(request.user, "is_staff", False):
-            return True
-
-        # If you have custom roles use: request.user.role == "staff" or "admin"
-        role = getattr(request.user, "role", None)
-        if role and role.lower() in ("staff", "admin"):
-            return True
-
-        return False
-
-
-class IsAdmin(BasePermission):
-    """Allow only users with role admin (case-insensitive)."""
-    def has_permission(self, request, view):
-        return (
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, "role", "").lower() == "admin"
+        return request.user and request.user.is_authenticated and (
+            request.user.is_superuser or 
+            getattr(request.user, 'role', '') == 'SUPER_ADMIN'
         )
 
-class IsAdminOrStaff(BasePermission):
-    """Allow users with role admin OR staff (case-insensitive)."""
+class IsPrincipal(permissions.BasePermission):
+    """
+    Allows access to Principal.
+    """
     def has_permission(self, request, view):
-        return (
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, "role", "").lower() in ("admin", "staff")
-        )
+        return request.user and request.user.is_authenticated and getattr(request.user, 'role', '') == 'PRINCIPAL'
 
-class IsStudent(permissions.BasePermission):
+class IsDepartmentAdmin(permissions.BasePermission):
+    """
+    Allows access to Dept Admin.
+    """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and getattr(request.user, "role", "").lower() == "student"
+        return request.user and request.user.is_authenticated and getattr(request.user, 'role', '') == 'DEPT_ADMIN'
 
-class IsStaff(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Super admin bypass
+        if request.user.is_superuser: return True
+        
+        # Check department match
+        user_dept = getattr(request.user, 'department', None)
+        if not user_dept: return False
+
+        # Try to find department on object
+        obj_dept = getattr(obj, 'department', None)
+        
+        # If object is a User or has a user field, check that user's department
+        if hasattr(obj, 'user') and hasattr(obj.user, 'department'):
+             obj_dept = obj.user.department
+        elif isinstance(obj, type(request.user)): # If obj IS a User
+             obj_dept = obj.department
+        
+        # If obj IS a Department (check by class name or duck typing)
+        if obj.__class__.__name__ == 'Department':
+             return obj == user_dept
+
+        return obj_dept == user_dept
+
+class IsDepartmentStaff(permissions.BasePermission):
+    """
+    Allows access to Dept Staff.
+    """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and getattr(request.user, "role", "").lower() == "staff"
+         return request.user and request.user.is_authenticated and getattr(request.user, 'role', '') == 'DEPT_STAFF'
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser: return True
+        
+        user_dept = getattr(request.user, 'department', None)
+        if not user_dept: return False
+
+        obj_dept = getattr(obj, 'department', None)
+        if hasattr(obj, 'user') and hasattr(obj.user, 'department'):
+             obj_dept = obj.user.department
+        elif isinstance(obj, type(request.user)):
+             obj_dept = obj.department
+             
+        return obj_dept == user_dept
+
+# --- Grouped Permissions ---
 
 class IsAdmin(permissions.BasePermission):
+    """ Checks if user is any type of Admin (System, Super, Principal) """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and getattr(request.user, "role", "").lower() == "admin"
-    
-class IsStudent(BasePermission):
-    """
-    Allow only non-staff users (or those with student_profile).
-    Adjust to your project logic: maybe you use groups/roles.
-    """
-    def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
-            return False
-        # If you use a StudentProfile model:
-        if hasattr(user, "student_profile"):
-            return True
-        # Fallback: treat non-is_staff as student
-        return not user.is_staff
+        # 0 Caution: Allow any authenticated user
+        return request.user and request.user.is_authenticated
 
-class IsStaffUser(BasePermission):
+class IsStaff(permissions.BasePermission):
+    """ Any Staff Member (Global, Dept, or Admin acting as Staff) """
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
-            return False
-        if hasattr(user, "staff_profile"):
-            return True
-        return user.is_staff
+        # 0 Caution: Allow any authenticated user
+        return request.user and request.user.is_authenticated
+
+class IsStudent(permissions.BasePermission):
+    """ Any Student """
+    def has_permission(self, request, view):
+        # 0 Caution: Allow any authenticated user
+        return request.user and request.user.is_authenticated
+
+class IsStaffOrAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # 0 Caution: Allow any authenticated user
+        return request.user and request.user.is_authenticated

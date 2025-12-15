@@ -7,6 +7,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Notice = {
   id: number;
@@ -30,7 +31,7 @@ export default function StaffNotice() {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      const res = await axios.get("http://10.193.11.125:8000/api/notice/list/", {
+      const res = await axios.get(`${API_BASE_URL}/api/notice/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotices(res.data);
@@ -59,7 +60,7 @@ export default function StaffNotice() {
       formData.append("image", { uri: image, type: "image/jpeg", name: "notice.jpg" } as any);
     }
     try {
-      await axios.post("http://10.193.11.125:8000/api/notice/create/", formData, {
+      await axios.post(`${API_BASE_URL}/api/notice/create/`, formData, {
         headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` },
       });
       Alert.alert("Success", "Notice posted!");
@@ -71,7 +72,7 @@ export default function StaffNotice() {
   const handleDelete = async (id: number) => {
     const token = await AsyncStorage.getItem("accessToken");
     try {
-      await axios.delete(`http://10.193.11.125:8000/api/notice/${id}/delete/`, {
+      await axios.delete(`${API_BASE_URL}/api/notice/${id}/delete/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       Alert.alert("Deleted", "Notice removed successfully");

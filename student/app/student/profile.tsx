@@ -16,6 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 export default function StudentProfileScreen() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function StudentProfileScreen() {
 
   const fetchProfile = async (token: string) => {
     try {
-      const res = await fetch("http://10.193.11.125:8000/api/student/profile/", {
+      const res = await fetch(`${API_BASE_URL}/api/student/profile/`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
@@ -59,7 +60,7 @@ export default function StudentProfileScreen() {
 
       if (res.ok) {
         if (data.avatar && typeof data.avatar === "string" && !data.avatar.startsWith("http")) {
-          data.avatar = `http://10.193.11.125:8000${data.avatar}`;
+          data.avatar = `${API_BASE_URL}${data.avatar}`;
         }
         setProfile(data);
         if (data.avatar) setAvatarUri(data.avatar);
@@ -138,7 +139,7 @@ export default function StudentProfileScreen() {
         formData.append("avatar", { uri: avatarUri, name: filename, type } as any);
       }
 
-      const res = await fetch("http://10.193.11.125:8000/api/student/profile/update/", {
+      const res = await fetch(`${API_BASE_URL}/api/student/profile/update/`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
         body: formData,
@@ -218,6 +219,16 @@ export default function StudentProfileScreen() {
 
           <TouchableOpacity style={styles.button} onPress={() => router.push("/student/changepassword")}>
             <Text style={styles.buttonText}>Change Password</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: "#FF3B30", marginTop: 15 }]}
+            onPress={async () => {
+              await AsyncStorage.clear();
+              router.replace("/login");
+            }}
+          >
+            <Text style={styles.buttonText}>Logout</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function CreateStaff() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://10.193.11.125:8000/api/student/admin/create-staff/", {
+      const response = await fetch(`${API_BASE_URL}/api/student/admin/create-staff/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

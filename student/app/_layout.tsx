@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
-import { SafeAreaView, StyleSheet, Platform, StatusBar } from "react-native";
+import { StyleSheet, Platform, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Layout() {
   return (

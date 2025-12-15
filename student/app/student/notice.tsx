@@ -3,6 +3,7 @@ import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, Alert, Touc
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Notice = {
   id: number;
@@ -26,7 +27,7 @@ export default function StudentNoticeBoard() {
   const fetchNotices = async () => {
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      const res = await fetch("http://10.193.11.125:8000/api/notice/list/", {
+      const res = await fetch(`${API_BASE_URL}/api/notice/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch notices");
@@ -66,46 +67,46 @@ export default function StudentNoticeBoard() {
   return (
     <View style={{ flex: 1, backgroundColor: "#f7f9fc" }}>
       {/* 🔹 Header */}
-            <TouchableOpacity
-              style={styles.header}
-              onPress={() => setShowMenu(!showMenu)}
-            >
-              <Ionicons name="arrow-back" size={22} color="#30e4de" />
-              <Text style={styles.headerTitle}>NOTICES BOARD</Text>
-              <Ionicons
-                name={showMenu ? "chevron-up" : "chevron-down"}
-                size={22}
-                color="#30e4de"
-              />
-            </TouchableOpacity>
-      
-            {/* 🔹 Dropdown Menu */}
-            {showMenu && (
-              <View style={styles.menuBox}>
-                <TouchableOpacity
-                  style={styles.menuBtn}
-                  onPress={() => router.push("/student/fees")}
-                >
-                  <Ionicons name="cash-outline" size={18} color="#fff" />
-                  <Text style={styles.menuText}>Fees</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuBtn}
-                  onPress={() => router.push("/student/results")}
-                >
-                  <Ionicons name="ribbon-outline" size={18} color="#fff" />
-                  <Text style={styles.menuText}>Results</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuBtn}
-                  onPress={() => router.push("/student/time table")}
-                >
-                  <Ionicons name="calendar-outline" size={18} color="#fff" />
-                  <Text style={styles.menuText}>Time Table</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-      
+      <TouchableOpacity
+        style={styles.header}
+        onPress={() => setShowMenu(!showMenu)}
+      >
+        <Ionicons name="arrow-back" size={22} color="#30e4de" />
+        <Text style={styles.headerTitle}>NOTICES BOARD</Text>
+        <Ionicons
+          name={showMenu ? "chevron-up" : "chevron-down"}
+          size={22}
+          color="#30e4de"
+        />
+      </TouchableOpacity>
+
+      {/* 🔹 Dropdown Menu */}
+      {showMenu && (
+        <View style={styles.menuBox}>
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => router.push("/student/fees")}
+          >
+            <Ionicons name="cash-outline" size={18} color="#fff" />
+            <Text style={styles.menuText}>Fees</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => router.push("/student/results")}
+          >
+            <Ionicons name="ribbon-outline" size={18} color="#fff" />
+            <Text style={styles.menuText}>Results</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => router.push("/student/time table")}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#fff" />
+            <Text style={styles.menuText}>Time Table</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
 
       <FlatList
         data={notices}
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontWeight: "bold", fontSize: 16, marginBottom: 4 },
 
-  
+
   title: { fontSize: 16, fontWeight: "bold", color: "#222" },
   meta: { fontSize: 12, color: "#666", marginBottom: 8 },
   content: { fontSize: 14, marginBottom: 8, color: "#333" },

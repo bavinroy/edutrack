@@ -13,6 +13,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 export default function StaffChangePasswordScreen() {
   const [oldPassword, setOldPassword] = useState("");
@@ -55,7 +56,7 @@ export default function StaffChangePasswordScreen() {
 
     try {
       const res = await fetch(
-        "http://10.193.11.125:8000/api/staff/profile/change-password/",
+        `${API_BASE_URL}/api/staff/profile/change-password/`,
         {
           method: "POST",
           headers: {

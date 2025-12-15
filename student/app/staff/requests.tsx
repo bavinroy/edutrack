@@ -15,6 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Letter = { id: number; title: string; content: string; created_at: string };
 type Request = {
@@ -46,7 +47,7 @@ export default function StaffRequestsScreen() {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
 
-      const res = await fetch("http://10.193.11.125:8000/api/request/staff/list/", {
+      const res = await fetch(`${API_BASE_URL}/api/request/staff/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -69,7 +70,7 @@ export default function StaffRequestsScreen() {
       if (!token) return;
 
       const res = await fetch(
-        `http://10.193.11.125:8000/api/request/staff/${requestId}/`,
+        `${API_BASE_URL}/api/request/staff/${requestId}/`,
         {
           method: "PATCH",
           headers: {

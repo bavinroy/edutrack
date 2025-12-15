@@ -14,6 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Letter = { id: number; title: string; content: string; created_at: string };
 type Staff = { id: number; username: string; avatar_url?: string };
@@ -39,9 +40,9 @@ export default function RequestsScreen() {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
       const [lettersRes, requestsRes, staffRes] = await Promise.all([
-        fetch("http://10.193.11.125:8000/api/letters/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://10.193.11.125:8000/api/request/student/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://10.193.11.125:8000/api/staff/list/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/letters/`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/request/student/`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/staff/list/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setLetters(await lettersRes.json());
       setRequests(await requestsRes.json());
@@ -54,12 +55,12 @@ export default function RequestsScreen() {
     try {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
-      const res = await fetch("http://10.193.11.125:8000/api/request/create/", {
+      const res = await fetch(`${API_BASE_URL}/api/request/create/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ letter: letterId, staff: staffId }),
       });
-      if (res.ok) { Alert.alert("✅ Success", "Request sent successfully!"); loadData(); } 
+      if (res.ok) { Alert.alert("✅ Success", "Request sent successfully!"); loadData(); }
       else { Alert.alert("❌ Error", "Failed to send request"); }
     } catch (err) { console.error(err); Alert.alert("Error", "Something went wrong"); }
   };

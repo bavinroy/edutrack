@@ -8,14 +8,15 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   Animated,
   Easing,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 interface Document {
   id: number;
@@ -54,14 +55,23 @@ export default function StaffUpload() {
     const token = await AsyncStorage.getItem("accessToken");
     if (!token) return;
     try {
-      const res = await fetch("http://10.193.11.125:8000/api/accounts/documents/list/", {
+      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch documents");
+      if (res.status === 401) {
+        Alert.alert("Session Expired", "Please login again.");
+        await AsyncStorage.removeItem("accessToken");
+        router.replace("/login");
+        return;
+      }
+      if (!res.ok) {
+        console.error("Fetch error:", res.status, res.statusText);
+        throw new Error("Failed to fetch documents");
+      }
       const data = await res.json();
       const absoluteData = data.map((doc: any) => ({
         ...doc,
-        file: doc.file.startsWith("http") ? doc.file : `http://10.193.11.125:8000${doc.file}`,
+        file: doc.file.startsWith("http") ? doc.file : `${API_BASE_URL}${doc.file}`,
       }));
       setDocs(absoluteData);
 
@@ -103,7 +113,7 @@ export default function StaffUpload() {
     } as any);
 
     try {
-      const res = await fetch("http://10.193.11.125:8000/api/accounts/documents/upload/", {
+      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/upload/`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         body: formData,
@@ -126,7 +136,7 @@ export default function StaffUpload() {
     const token = await AsyncStorage.getItem("accessToken");
     if (!token) return;
     try {
-      const res = await fetch(`http://10.193.11.125:8000/api/accounts/documents/delete/${id}/`, {
+      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/delete/${id}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -224,39 +234,39 @@ export default function StaffUpload() {
 
       {/* Documents List */}
       <FlatList
-  contentContainerStyle={{ paddingBottom: 120 }}
-  data={docs}
-  keyExtractor={(item) => item.id.toString()}
-  renderItem={({ item }) => (
-    <View style={styles.card}>
-      {/* Tap title to view document */}
-      <TouchableOpacity onPress={() => handleNav(`/staff/document/${item.id}`)}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
-      </TouchableOpacity>
-      <Text>{item.description}</Text>
-      <Text>📘 {item.subject_name} ({item.subject_code})</Text>
-      <Text>👨‍🏫 {item.staff_name}</Text>
+        contentContainerStyle={{ paddingBottom: 120 }}
+        data={docs}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            {/* Tap title to view document */}
+            <TouchableOpacity onPress={() => handleNav(`/staff/document/${item.id}`)}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+            </TouchableOpacity>
+            <Text>{item.description}</Text>
+            <Text>📘 {item.subject_name} ({item.subject_code})</Text>
+            <Text>👨‍🏫 {item.staff_name}</Text>
 
-      {/* Delete Button */}
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={() =>
-          Alert.alert(
-            "Confirm Delete",
-            "Are you sure you want to delete this document?",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Delete", style: "destructive", onPress: () => deleteFile(item.id) },
-            ]
-          )
-        }
-      >
-        <Ionicons name="trash-outline" size={18} color="#fff" />
-        <Text style={styles.deleteText}>Delete</Text>
-      </TouchableOpacity>
-    </View>
-  )}
-/>
+            {/* Delete Button */}
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() =>
+                Alert.alert(
+                  "Confirm Delete",
+                  "Are you sure you want to delete this document?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: () => deleteFile(item.id) },
+                  ]
+                )
+              }
+            >
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
 
 
       {/* Bottom Navigation */}
@@ -289,19 +299,19 @@ const styles = StyleSheet.create({
   badge: { position: "absolute", top: -4, right: -4, backgroundColor: "#dc3545", borderRadius: 8, minWidth: 16, height: 16, justifyContent: "center", alignItems: "center", paddingHorizontal: 2 },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
   deleteBtn: {
-  flexDirection: "row",
-  justifyContent: "center",
-  alignItems: "center",
-  backgroundColor: "#dc3545",
-  paddingVertical: 10,
-  borderRadius: 8,
-  marginTop: 10,
-},
-deleteText: {
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: "600",
-  marginLeft: 6,
-},
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#dc3545",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  deleteText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
 
 });

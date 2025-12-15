@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, TextInput, Alert, FlatList, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView 
+import {
+  View, TextInput, Alert, FlatList, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 type Notice = {
   id: number;
@@ -30,7 +31,7 @@ export default function NoticePost() {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      const res = await axios.get("http://10.193.11.125:8000/api/notice/list/", {
+      const res = await axios.get(`${API_BASE_URL}/api/notice/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotices(res.data);
@@ -59,7 +60,7 @@ export default function NoticePost() {
       formData.append("image", { uri: image, type: "image/jpeg", name: "notice.jpg" } as any);
     }
     try {
-      await axios.post("http://10.193.11.125:8000/api/notice/create/", formData, {
+      await axios.post(`${API_BASE_URL}/api/notice/create/`, formData, {
         headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` },
       });
       Alert.alert("Success", "Notice posted!");
@@ -71,7 +72,7 @@ export default function NoticePost() {
   const handleDelete = async (id: number) => {
     const token = await AsyncStorage.getItem("accessToken");
     try {
-      await axios.delete(`http://10.193.11.125:8000/api/notice/${id}/delete/`, {
+      await axios.delete(`${API_BASE_URL}/api/notice/${id}/delete/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       Alert.alert("Deleted", "Notice removed successfully");
@@ -103,39 +104,39 @@ export default function NoticePost() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f7f9fc", paddingBottom: 80 }}>
-      
+
 
       {/* 🔹 Notices List */}
       <FlatList
-  data={notices}
-  keyExtractor={(item) => item.id.toString()}
-  renderItem={renderNotice}
-  contentContainerStyle={{ padding: 14, paddingBottom: 100 }}
-  ListHeaderComponent={
-    <View>
-      {/* 🔹 Post Form */}
-      <TextInput
-        placeholder="Title"
-        value={title}
-        onChangeText={setTitle}
-        style={styles.input}
+        data={notices}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderNotice}
+        contentContainerStyle={{ padding: 14, paddingBottom: 100 }}
+        ListHeaderComponent={
+          <View>
+            {/* 🔹 Post Form */}
+            <TextInput
+              placeholder="Title"
+              value={title}
+              onChangeText={setTitle}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Content / Date & Place"
+              value={content}
+              onChangeText={setContent}
+              style={[styles.input, { height: 80 }]}
+              multiline
+            />
+            <TouchableOpacity style={styles.pickBtn} onPress={pickImage}>
+              <Text style={styles.pickBtnText}>{image ? "Change Image" : "Pick Image"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+              <Text style={styles.submitBtnText}>Post Notice</Text>
+            </TouchableOpacity>
+          </View>
+        }
       />
-      <TextInput
-        placeholder="Content / Date & Place"
-        value={content}
-        onChangeText={setContent}
-        style={[styles.input, { height: 80 }]}
-        multiline
-      />
-      <TouchableOpacity style={styles.pickBtn} onPress={pickImage}>
-        <Text style={styles.pickBtnText}>{image ? "Change Image" : "Pick Image"}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-        <Text style={styles.submitBtnText}>Post Notice</Text>
-      </TouchableOpacity>
-    </View>
-  }
-/>
 
 
       {/* Bottom Navigation */}

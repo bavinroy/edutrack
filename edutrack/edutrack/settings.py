@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,6 +45,54 @@ INSTALLED_APPS = [
     'Staff_profile'
     
 ]
+
+JAZZMIN_SETTINGS = {
+    "site_title": "EduTrack Admin",
+    "site_header": "EduTrack",
+    "site_brand": "EduTrack",
+    "welcome_sign": "Welcome",
+    "copyright": "EduTrack",
+    "search_model": "accounts.User",
+    "show_sidebar": True,
+    "navigation_expanded": False, # Collapsed on load to save space on mobile
+    "changeform_format": "single",
+    "hide_apps": [],
+    "hide_models": [],
+    "icons": {
+        "accounts.User": "fas fa-users",
+        "accounts.Department": "fas fa-university",
+        "accounts.Student": "fas fa-user-graduate",
+        "accounts.StaffProfile": "fas fa-chalkboard-teacher",
+    },
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+    ],
+    "show_ui_builder": False,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "minty",
+    "dark_mode_theme": "darkly",
+    "navbar": "navbar-dark",
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "main_bg": "",
+    "main_hover_color": "",
+    "brand_small_text": False,
+    "page_header_small_text": False,
+    "body_small_text": False,
+    "footer_small_text": False,
+    "accent": "accent-info",
+    "navbar_small_text": False,
+    "no_navbar_border": True,
+    "sidebar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "actions_sticky_top": True
+}
 
 AUTH_USER_MODEL = 'accounts.User'
 

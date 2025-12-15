@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { API_BASE_URL } from "./config";
 
 // 🔹 Utility: fetch with auto-refresh
 const fetchWithAuth = async (url: string, options: any = {}) => {
@@ -30,7 +31,7 @@ const fetchWithAuth = async (url: string, options: any = {}) => {
     const refresh = await AsyncStorage.getItem("refreshToken");
     if (!refresh) throw new Error("No refresh token found");
 
-    const refreshRes = await fetch("http://10.193.11.125:8000/api/accounts/token/refresh/", {
+    const refreshRes = await fetch(`${API_BASE_URL}/api/accounts/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
@@ -72,7 +73,7 @@ export default function LoginScreen() {
 
     try {
       // Step 1: Login API
-      const response = await fetch("http://10.193.11.125:8000/api/accounts/login/", {
+      const response = await fetch(`${API_BASE_URL}/api/accounts/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -92,7 +93,7 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("refreshToken", data.refresh);
 
       // Step 3: Get role with token
-      const roleResponse = await fetchWithAuth("http://10.193.11.125:8000/api/accounts/whoami/");
+      const roleResponse = await fetchWithAuth(`${API_BASE_URL}/api/accounts/whoami/`);
       const roleData = await roleResponse.json();
       console.log("Role Data:", roleData);
 
@@ -105,14 +106,18 @@ export default function LoginScreen() {
       // Step 4: Save role & navigate
       await AsyncStorage.setItem("userRole", roleData.role);
 
-      switch (roleData.role.toLowerCase()) {
-        case "admin":
+      switch (roleData.role.toUpperCase()) {
+        case "SUPER_ADMIN":
+        case "PRINCIPAL":
           router.push("./admin/dashboard");
           break;
-        case "staff":
+        case "DEPT_ADMIN":
+          router.push("./dept_admin/dashboard");
+          break;
+        case "DEPT_STAFF":
           router.push("./staff/dashboard");
           break;
-        case "student":
+        case "DEPT_STUDENT":
           router.push("./student/dashboard");
           break;
         default:
@@ -158,15 +163,15 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-       
+
 
         {loading ? (
           <ActivityIndicator size="large" color="#00B9BD" />
         ) : (
           <View style={{ alignItems: "center", width: "100%" }}>
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={{ color: "white", fontWeight: "bold" }}>Sign In</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+              <Text style={{ color: "white", fontWeight: "bold" }}>Sign In</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -222,18 +227,18 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   button: {
-  backgroundColor: "#00B9BD",
-  paddingVertical: 16,
-  borderRadius: 7,
-  alignItems: "center",
-  width: 260,
-  marginTop: 30,
-  alignSelf: "center",   // ✅ centers the button horizontally
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 4,
-},
+    backgroundColor: "#00B9BD",
+    paddingVertical: 16,
+    borderRadius: 7,
+    alignItems: "center",
+    width: 260,
+    marginTop: 30,
+    alignSelf: "center",   // ✅ centers the button horizontally
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
 
   buttonText: {
     color: "#fff",

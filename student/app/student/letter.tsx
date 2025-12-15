@@ -15,6 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { API_BASE_URL } from "../config";
 
 interface Letter {
   id: number;
@@ -37,7 +38,7 @@ export default function StudentLettersScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
-  const API_URL = "http://10.193.11.125:8000/api/letters/";
+  const API_URL = `${API_BASE_URL}/api/letters/`;
 
   // Fetch current logged-in user and letters
   useEffect(() => {
@@ -207,22 +208,22 @@ export default function StudentLettersScreen() {
                 By {item.owner} | {item.is_shared ? "Shared" : "Private"}
               </Text>
 
-              
+
               <View style={{ flexDirection: "row", marginTop: 5 }}>
-              <TouchableOpacity
-                style={[styles.smallButton, { backgroundColor: "#30e4de" }]}
-                 onPress={() => handleEdit(item)}
+                <TouchableOpacity
+                  style={[styles.smallButton, { backgroundColor: "#30e4de" }]}
+                  onPress={() => handleEdit(item)}
                 >
                   <Ionicons name="create-outline" size={16} color="#3a2929ff" />
                   <Text style={styles.smallButtonText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.smallButton, { backgroundColor: "#ff4d4d" }]}
-                onPress={() => handleDelete(item.id)}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.smallButton, { backgroundColor: "#ff4d4d" }]}
+                  onPress={() => handleDelete(item.id)}
                 >
-              <Ionicons name="trash-outline" size={16} color="#fff" />
-                <Text style={styles.smallButtonText}>Delete</Text>
-               </TouchableOpacity>
+                  <Ionicons name="trash-outline" size={16} color="#fff" />
+                  <Text style={styles.smallButtonText}>Delete</Text>
+                </TouchableOpacity>
               </View>
 
             </View>

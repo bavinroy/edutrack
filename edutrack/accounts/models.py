@@ -9,6 +9,18 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField  # fallback for older versions
 
+
+class Department(models.Model):
+    CATEGORY_CHOICES = [
+        ("UG", "Under Graduate"),
+        ("PG", "Post Graduate"),
+    ]
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=5, choices=CATEGORY_CHOICES, default="UG")
+
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
 class TimeTable(models.Model):
     """
     A flexible timetable container. `grid` holds the table data as JSON.
@@ -23,12 +35,25 @@ class TimeTable(models.Model):
       "meta": { "class": "IV CSE", "section": "A", "notes": "Exam week exceptions..." }
     }
     """
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("pending_verification", "Pending Verification"),
+        ("published", "Published"),
+        ("rejected", "Rejected"),
+    ]
+
     title = models.CharField(max_length=200, blank=True)
-    class_name = models.CharField(max_length=100, blank=True)   # e.g. "IV CSE"
-    section = models.CharField(max_length=50, blank=True)       # e.g. "A"
-    year = models.CharField(max_length=20, blank=True)          # optional free text
-    grid = JSONField(default=dict)  # stores periods + rows + meta
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="timetables")
+    class_name = models.CharField(max_length=100, blank=True)
+    section = models.CharField(max_length=50, blank=True)
+    year = models.CharField(max_length=20, blank=True)
+    grid = JSONField(default=dict)
+    
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="created_timetables")
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, related_name="timetables", null=True, blank=True)
+    
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default="draft")
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="verified_timetables")
+    
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -54,7 +79,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, username, email=None, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", User.Roles.ADMIN)  # 👈 Superuser always Admin
+        extra_fields.setdefault("role", User.Roles.SUPER_ADMIN)  # 👈 Superuser always Super Admin
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
@@ -65,25 +90,70 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     class Roles(models.TextChoices):
-        ADMIN = "ADMIN", "Admin"
-        STAFF = "STAFF", "Staff"
-        STUDENT = "STUDENT", "Student"
+        SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
+        PRINCIPAL = "PRINCIPAL", "Principal"
+        DEPT_ADMIN = "DEPT_ADMIN", "Dept Admin"
+        DEPT_STAFF = "DEPT_STAFF", "Dept Staff"
+        DEPT_STUDENT = "DEPT_STUDENT", "Dept Student"
 
     role = models.CharField(
         max_length=20,
         choices=Roles.choices,
-        default=Roles.STUDENT
+        default=Roles.DEPT_STUDENT
+    )
+    
+    # Link every user to a department directly for RBAC
+    department = models.ForeignKey(
+        'Department', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name="users"
     )
 
     def is_admin(self):
-        return self.role == self.Roles.ADMIN
+        return self.role in [self.Roles.SUPER_ADMIN, self.Roles.PRINCIPAL, self.Roles.DEPT_ADMIN]
 
     def is_staff_member(self):
-        return self.role == self.Roles.STAFF
+        return self.role in [self.Roles.DEPT_STAFF, self.Roles.DEPT_ADMIN]
 
     def is_student(self):
-        return self.role == self.Roles.STUDENT
+        return self.role == self.Roles.DEPT_STUDENT
+    
+    @property
+    def is_super_admin(self):
+        return self.role == self.Roles.SUPER_ADMIN
+
+    @property
+    def is_principal(self):
+        return self.role == self.Roles.PRINCIPAL
+
+    @property
+    def is_dept_admin(self):
+        return self.role == self.Roles.DEPT_ADMIN
+
+    @property
+    def is_dept_staff(self):
+        return self.role == self.Roles.DEPT_STAFF
+
     objects = UserManager()
+
+    def save(self, *args, **kwargs):
+        # Auto-grant permissions based on role
+        if self.role == self.Roles.SUPER_ADMIN:
+             self.is_staff = True
+             self.is_superuser = True
+        elif self.role == self.Roles.PRINCIPAL:
+             self.is_staff = True
+             self.is_superuser = True # Assume Principal needs full access for now, or refine if asked
+        elif self.role == self.Roles.DEPT_ADMIN:
+             self.is_staff = True
+             self.is_superuser = False # <--- RESTRICTED
+        elif self.role == self.Roles.DEPT_STAFF:
+             self.is_staff = True # Allow login to Admin
+             self.is_superuser = False
+        
+        super().save(*args, **kwargs)
 
 
 
@@ -103,11 +173,8 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.roll_no} - {self.user.username}"
     
-class Department(models.Model):
-    name = models.CharField(max_length=100)
+    # Department moved to top
 
-    def __str__(self):
-        return self.name
 
 class Subject(models.Model):
     name = models.CharField(max_length=100)
