@@ -32,7 +32,11 @@ export default function StudentNoticeBoard() {
       });
       if (!res.ok) throw new Error("Failed to fetch notices");
       const data: Notice[] = await res.json();
-      setNotices(data);
+      if (Array.isArray(data)) {
+        setNotices(data);
+      } else {
+        setNotices([]);
+      }
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Could not load notices");

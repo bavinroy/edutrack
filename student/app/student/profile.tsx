@@ -29,6 +29,12 @@ export default function StudentProfileScreen() {
     department: "",
     year: "",
     student_id: "",
+    display_name: "",
+    first_name: "",
+    last_name: "",
+    date_joined: "",
+    role: "",
+    last_login: "",
   });
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,14 +134,16 @@ export default function StudentProfileScreen() {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("phone_number", profile.phone_number);
-      formData.append("department", profile.department);
-      formData.append("year", profile.year);
+      if (profile.phone_number) formData.append("phone_number", profile.phone_number);
+      if (profile.department) formData.append("department", profile.department);
+      if (profile.year) formData.append("year", String(profile.year));
 
-      if (avatarUri) {
-        const filename = avatarUri.split("/").pop();
-        const match = /\.(\w+)$/.exec(filename || "");
-        const type = match ? `image/${match[1]}` : `image`;
+      if (avatarUri && !avatarUri.startsWith("http")) { // Only upload if it's a new local URI
+        const filename = avatarUri.split("/").pop() || "profile.jpg";
+        const match = /\.(\w+)$/.exec(filename);
+        let type = match ? `image/${match[1]}` : `image/jpeg`;
+        if (type === 'image/jpg') type = 'image/jpeg'; // Common fix
+
         formData.append("avatar", { uri: avatarUri, name: filename, type } as any);
       }
 
@@ -151,7 +159,8 @@ export default function StudentProfileScreen() {
         setProfile({ ...profile, ...data });
         if (data.avatar) setAvatarUri(data.avatar);
       } else {
-        Alert.alert("Error", data.detail || "Failed to update profile");
+        const errorMsg = data.detail || (data.errors ? JSON.stringify(data.errors, null, 2) : "Failed to update profile");
+        Alert.alert("Data Error", errorMsg);
       }
     } catch (err) {
       console.error(err);
@@ -180,6 +189,23 @@ export default function StudentProfileScreen() {
 
         {/* Profile Info */}
         <View style={{ width: "100%" }}>
+          <Text style={styles.label}>Full Name</Text>
+          <TextInput style={styles.input} value={profile.display_name || "N/A"} editable={false} />
+
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <View style={{ width: "48%" }}>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput style={styles.input} value={profile.first_name || "N/A"} editable={false} />
+            </View>
+            <View style={{ width: "48%" }}>
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput style={styles.input} value={profile.last_name || "N/A"} editable={false} />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Role</Text>
+          <TextInput style={styles.input} value={profile.role || "Student"} editable={false} />
+
           <Text style={styles.label}>User Name</Text>
           <TextInput style={styles.input} value={profile.username} editable={false} />
 
@@ -197,18 +223,32 @@ export default function StudentProfileScreen() {
           <TextInput
             style={styles.input}
             value={profile.department}
-            onChangeText={(text) => setProfile({ ...profile, department: text })}
+            editable={false} // Student cannot change department
           />
 
           <Text style={styles.label}>Year</Text>
           <TextInput
             style={styles.input}
             value={profile.year ? String(profile.year) : ""}
-            onChangeText={(text) => setProfile({ ...profile, year: text })}
+            editable={false} // Already false, but ensuring consistency
           />
 
           <Text style={styles.label}>Student ID</Text>
           <TextInput style={styles.input} value={profile.student_id} editable={false} />
+
+          <Text style={styles.label}>Date Joined</Text>
+          <TextInput
+            style={styles.input}
+            value={profile.date_joined ? new Date(profile.date_joined).toLocaleDateString() : "N/A"}
+            editable={false}
+          />
+
+          <Text style={styles.label}>Last Login</Text>
+          <TextInput
+            style={styles.input}
+            value={profile.last_login ? new Date(profile.last_login).toLocaleString() : "Never"}
+            editable={false}
+          />
         </View>
 
         {/* Buttons */}

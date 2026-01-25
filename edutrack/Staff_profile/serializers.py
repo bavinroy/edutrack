@@ -10,6 +10,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     role = serializers.CharField(source="user.role", read_only=True)
+    department = serializers.CharField(source="user.department.name", read_only=True, default=None)
     avatar_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -23,6 +24,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             "department",
             "designation",
             "avatar_url",
+            "avatar", # Expose direct path too
             "date_joined",
         ]
 

@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { API_BASE_URL } from "./config";
 
 // 🔹 Utility: fetch with auto-refresh
@@ -58,6 +58,9 @@ const fetchWithAuth = async (url: string, options: any = {}) => {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { role } = useLocalSearchParams(); // Get role param
+  const isStudent = role === 'student';
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -140,9 +143,9 @@ export default function LoginScreen() {
       <View>
         <Text style={styles.title}>EDU TRACK</Text>
 
-        <Text style={styles.label}>Username</Text>
+        <Text style={styles.label}>{isStudent ? "Register Number" : "Username"}</Text>
         <TextInput
-          placeholder="Enter username"
+          placeholder={isStudent ? "Enter Register Number" : "Enter username"}
           style={styles.input}
           value={username}
           onChangeText={setUsername}

@@ -26,6 +26,7 @@ type StudentRequest = {
     student_name: string;
     staff_status: string;
     admin_status: string;
+    principal_status: string;
     admin_comment?: string;
     created_at: string;
 };
@@ -65,6 +66,7 @@ export default function DeptAdminRequestsScreen() {
     const [studentModalVisible, setStudentModalVisible] = useState(false);
     const [currentStudentRequest, setCurrentStudentRequest] = useState<StudentRequest | null>(null);
     const [studentDeclineComment, setStudentDeclineComment] = useState("");
+    const [forwardToPrincipal, setForwardToPrincipal] = useState(false);
 
     const [staffModalVisible, setStaffModalVisible] = useState(false);
     const [currentTimetable, setCurrentTimetable] = useState<TimetableRequest | null>(null);
@@ -83,15 +85,29 @@ export default function DeptAdminRequestsScreen() {
                 const res = await fetch(`${API_BASE_URL}/api/request/admin/list/`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                const data = await res.json();
-                setStudentRequests(data);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setStudentRequests(data);
+                    } else {
+                        console.error("API returned non-array:", data);
+                        setStudentRequests([]);
+                    }
+                } else {
+                    console.log("Failed to fetch student requests", res.status);
+                    setStudentRequests([]);
+                }
             } else {
                 const res = await fetch(`${API_BASE_URL}/api/accounts/timetables/pending/`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    setTimetableRequests(data);
+                    if (Array.isArray(data)) {
+                        setTimetableRequests(data);
+                    } else {
+                        setTimetableRequests([]);
+                    }
                 } else {
                     console.log("Failed pending fetch");
                 }
@@ -111,13 +127,18 @@ export default function DeptAdminRequestsScreen() {
             const res = await fetch(`${API_BASE_URL}/api/request/admin/${requestId}/`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ admin_status: action, admin_comment: comment }),
+                body: JSON.stringify({
+                    admin_status: action,
+                    admin_comment: comment,
+                    forward: forwardToPrincipal
+                }),
             });
 
             if (res.ok) {
                 Alert.alert("Success", `Request ${action}`);
                 setStudentModalVisible(false);
                 setStudentDeclineComment("");
+                setForwardToPrincipal(false); // Reset
                 loadData();
             } else {
                 Alert.alert("Error", "Failed to update request");
@@ -153,15 +174,24 @@ export default function DeptAdminRequestsScreen() {
     // --- Renderers ---
 
     const renderStudentRequest = ({ item }: { item: StudentRequest }) => {
+        if (!item) return null;
         const pending = item.admin_status === "pending";
+
+        let statusDisplay = (item.admin_status || "Pending").toUpperCase();
+        if (item.admin_status === 'approved') {
+            if (item.principal_status === 'pending') statusDisplay += " (Sent to Principal)";
+            else if (item.principal_status === 'approved') statusDisplay += " (Finalized)";
+            else if (item.principal_status === 'rejected') statusDisplay += " (Rejected by Principal)";
+        }
+
         return (
             <TouchableOpacity
                 style={[styles.card, pending && styles.cardPending]}
-                onPress={() => { setCurrentStudentRequest(item); setStudentModalVisible(true); }}
+                onPress={() => { setCurrentStudentRequest(item); setStudentModalVisible(true); setForwardToPrincipal(false); }}
             >
-                <Text style={styles.title}>📄 {item.letter.title}</Text>
-                <Text style={styles.meta}>Student: {item.student_name}</Text>
-                <Text style={styles.meta}>Status: {item.admin_status.toUpperCase()}</Text>
+                <Text style={styles.title}>📄 {item.letter?.title || "No Title"}</Text>
+                <Text style={styles.meta}>Student: {item.student_name || "Unknown"}</Text>
+                <Text style={styles.meta}>Status: <Text style={{ fontWeight: 'bold', color: pending ? 'orange' : '#333' }}>{statusDisplay}</Text></Text>
                 {item.admin_comment && <Text style={styles.comment}>Note: {item.admin_comment}</Text>}
             </TouchableOpacity>
         );
@@ -353,20 +383,38 @@ export default function DeptAdminRequestsScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <ScrollView>
-                            <Text style={styles.modalHeader}>{currentStudentRequest?.letter.title}</Text>
-                            <Text style={{ marginBottom: 10 }}>{currentStudentRequest?.letter.content}</Text>
-                            <Text style={{ fontWeight: 'bold' }}>Student: {currentStudentRequest?.student_name}</Text>
+                            <Text style={styles.modalHeader}>{currentStudentRequest?.letter?.title || "Request"}</Text>
+                            <Text style={{ marginBottom: 10 }}>{currentStudentRequest?.letter?.content || "No content"}</Text>
+                            <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>Student: {currentStudentRequest?.student_name}</Text>
+                            <Text style={{ marginBottom: 15, color: '#555' }}>From Staff: {currentStudentRequest?.staff_status}</Text>
 
                             <TextInput
                                 style={styles.input}
-                                placeholder="Reason for rejection (optional)..."
+                                placeholder="Reason for rejection or admin note..."
                                 multiline
                                 value={studentDeclineComment}
                                 onChangeText={setStudentDeclineComment}
                             />
+
+                            {/* Forward to Principal Toggle */}
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}
+                                onPress={() => setForwardToPrincipal(!forwardToPrincipal)}
+                            >
+                                <Ionicons
+                                    name={forwardToPrincipal ? "checkbox" : "square-outline"}
+                                    size={24}
+                                    color={forwardToPrincipal ? "#00B9BD" : "#666"}
+                                />
+                                <Text style={{ marginLeft: 10, fontSize: 16, color: '#333' }}>Forward to Principal?</Text>
+                            </TouchableOpacity>
+
                             <View style={styles.actionRow}>
-                                <TouchableOpacity style={[styles.button, { backgroundColor: "green" }]} onPress={() => currentStudentRequest && handleStudentAction(currentStudentRequest.id, "approved")}>
-                                    <Text style={styles.buttonText}>Approve</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: "green" }]}
+                                    onPress={() => currentStudentRequest && handleStudentAction(currentStudentRequest.id, "approved")}
+                                >
+                                    <Text style={styles.buttonText}>{forwardToPrincipal ? "Approve & Send" : "Approve Final"}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.button, { backgroundColor: "red" }]} onPress={() => currentStudentRequest && handleStudentAction(currentStudentRequest.id, "rejected", studentDeclineComment)}>
                                     <Text style={styles.buttonText}>Reject</Text>

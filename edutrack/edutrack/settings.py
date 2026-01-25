@@ -50,12 +50,15 @@ JAZZMIN_SETTINGS = {
     "site_title": "EduTrack Admin",
     "site_header": "EduTrack",
     "site_brand": "EduTrack",
+    "site_logo": "img/logo.png",
+    "login_logo": "img/logo.png",
     "welcome_sign": "Welcome",
     "copyright": "EduTrack",
     "search_model": "accounts.User",
     "show_sidebar": True,
     "navigation_expanded": False, # Collapsed on load to save space on mobile
     "changeform_format": "single",
+    "custom_css": "css/custom_admin.css",
     "hide_apps": [],
     "hide_models": [],
     "icons": {
@@ -199,6 +202,10 @@ STATIC_URL = '/static/'
 
 # Folder where collectstatic will store files
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static')
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

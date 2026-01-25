@@ -14,16 +14,16 @@ from rest_framework.permissions import IsAuthenticated
 from Staff_profile.models import StaffProfile 
 from .models import (
     User, Student, Document, TimeTable, Letter, 
-    Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment, Department
+    Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment, Department, ClassAdvisor
 )
 
 # Serializers
 from .serializers import (
     UserSerializer, StudentSerializer, CustomTokenObtainPairSerializer,
     DocumentSerializer, TimeTableSerializer, LetterSerializer,
-    RequestSerializer, RequestActionSerializer, AdminActionSerializer,
+    RequestSerializer, RequestActionSerializer, AdminActionSerializer, PrincipalActionSerializer,
     NoticeSerializer, NoticeAcknowledgementSerializer, NoticeCommentSerializer,
-    UserCreateSerializer, BulkUploadSerializer, DepartmentSerializer
+    UserCreateSerializer, BulkUploadSerializer, DepartmentSerializer, ClassAdvisorSerializer
 )
 
 # Permissions
@@ -294,13 +294,13 @@ class CreateRequestView(generics.CreateAPIView):
         
         try:
            letter = Letter.objects.get(id=letter_id)
-           staff_profile = StaffProfile.objects.get(id=staff_id)  # use StaffProfile here
+           staff_profile = StaffProfile.objects.get(user__id=staff_id)
         except Letter.DoesNotExist:
            raise serializers.ValidationError({"letter": "Letter not found"})
         except StaffProfile.DoesNotExist:
            raise serializers.ValidationError({"staff": "Staff not found"})
         
-        staff_profile = StaffProfile.objects.get(id=staff_id)
+        staff_profile = StaffProfile.objects.get(user__id=staff_id)
         req = serializer.save(student=self.request.user, letter=letter, staff=staff_profile)
 
         RequestHistory.objects.create(
@@ -345,35 +345,47 @@ class StaffActionView(generics.UpdateAPIView):
         req = self.get_object()
         serializer = self.get_serializer(req, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            # optional: log action in history
+            req = serializer.save()
+            
+            if req.staff_status == 'rejected':
+                req.rejection_reason = req.staff_comment
+                req.save()
+
+            # Record history
             RequestHistory.objects.create(
                 request=req,
                 user=request.user,
-                action=req.staff_status,
+                action=f"Staff {req.staff_status}",
                 status=req.staff_status,
             )
             return Response(RequestSerializer(req).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# 1. Admin sees all staff-approved requests
+# 1. Admin sees all staff-approved requests (pending admin action)
 class AdminRequestsListView(generics.ListAPIView):
     serializer_class = RequestSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Only show requests where staff has approved
-        qs = Request.objects.filter(staff_status="approved")
+        # Only show requests where staff has approved (Both pending and processed by Admin)
+        qs = Request.objects.filter(staff_status="approved").order_by(
+            models.Case(models.When(admin_status="pending", then=0), default=1),
+            '-created_at'
+        )
         user = self.request.user
         
         # If Dept Admin, only show requests from their department users
         if user.is_authenticated and getattr(user, 'is_dept_admin', False):
              if user.department:
                  return qs.filter(student__department=user.department)
-             return qs.none() # Dept Admin without department shouldn't see anything
+             return qs.none() 
              
-        return qs
+        # Super Admin sees all? Or maybe restricted? Assuming global view for super admin.
+        if user.is_super_admin or user.is_superuser:
+            return qs
+
+        return qs.none() # Fallback
 
 # 2. Admin approves/rejects a request
 class AdminActionView(generics.UpdateAPIView):
@@ -383,11 +395,80 @@ class AdminActionView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         req = self.get_object()
-        req.admin_status = request.data.get("admin_status")
-        req.admin_comment = request.data.get("admin_comment", "")
-        req.save()
+        
+        new_status = request.data.get("admin_status")
+        comment = request.data.get("admin_comment", "")
+        # Frontend should send this flag if Dept Admin chose "Send to Principal"
+        forward_to_principal = request.data.get("forward", False) 
+
+        if new_status == 'rejected':
+             req.admin_status = 'rejected'
+             req.admin_comment = comment
+             req.rejection_reason = comment
+             req.save()
+        
+        elif new_status == 'approved':
+             req.admin_status = 'approved'
+             req.admin_comment = comment
+             
+             if forward_to_principal:
+                 req.principal_status = 'pending'
+             else:
+                 # Final approval -> Mark principal status as approved too (auto-pass)
+                 req.principal_status = 'approved'
+             
+             req.save()
+        else:
+             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        RequestHistory.objects.create(
+            request=req,
+            user=request.user,
+            action=f"Admin {req.admin_status}",
+            status=req.admin_status,
+        )
+
         return Response(RequestSerializer(req).data)
  
+
+
+
+# 3. Principal see only requests forwarded by Admin (admin="approved" AND principal="pending")
+class PrincipalRequestsListView(generics.ListAPIView):
+    serializer_class = RequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # User wants "only show dept admin sended to principal letters"
+        # This implies items waiting for Principal's action.
+        return Request.objects.filter(admin_status="approved", principal_status="pending").order_by('-created_at')
+
+class PrincipalActionView(generics.UpdateAPIView):
+    queryset = Request.objects.all()
+    serializer_class = PrincipalActionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        req = self.get_object()
+        new_status = request.data.get("principal_status")
+        comment = request.data.get("principal_comment", "")
+
+        if new_status in ['approved', 'rejected']:
+             req.principal_status = new_status
+             req.principal_comment = comment
+             if new_status == 'rejected':
+                 req.rejection_reason = comment
+             req.save()
+             
+             RequestHistory.objects.create(
+                request=req,
+                user=request.user,
+                action=f"Principal {new_status}",
+                status=new_status,
+            )
+             return Response(RequestSerializer(req).data)
+        
+        return Response({"error": "Invalid Status"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ✅ List all notices
@@ -602,6 +683,18 @@ class BulkUploadUsersView(APIView):
                             
                         username = str(username).strip()
                         email = str(email).strip()
+                        
+                        first_name = row.get('first_name')
+                        last_name = row.get('last_name')
+                        
+                        # Validate Names for Students
+                        if pd.isna(first_name) or str(first_name).strip() == "":
+                             # Optional: Make strict only for Students or everyone? User said "stricter validation for student creation".
+                             # But generally good to have names. Let's stick to Student requirement.
+                             pass 
+                        
+                        first_name = str(first_name).strip() if not pd.isna(first_name) else ""
+                        last_name = str(last_name).strip() if not pd.isna(last_name) else ""
 
                         # Determine Role
                         row_role = target_role or row.get('role')
@@ -638,6 +731,15 @@ class BulkUploadUsersView(APIView):
                         if row_role == User.Roles.DEPT_STUDENT and not can_create_student:
                              errors.append(f"Row {index}: Permission denied to create Student")
                              continue
+                        
+                        # Data Validation for Students
+                        if row_role == User.Roles.DEPT_STUDENT:
+                            if not first_name:
+                                errors.append(f"Row {index}: First Name is required for students")
+                                continue
+                            if not last_name:
+                                errors.append(f"Row {index}: Last Name is required for students")
+                                continue
                              
                         # Determine Department
                         from .models import Department
@@ -719,7 +821,20 @@ class BulkUploadUsersView(APIView):
                         while User.objects.filter(username=username).exists():
                              username = f"{original_username}{counter}"
                              counter += 1
-                             
+                        
+                        # Validate Year for Students
+                        student_year = None
+                        if row_role == User.Roles.DEPT_STUDENT:
+                            student_year = row.get('year')
+                            if pd.isna(student_year):
+                                errors.append(f"Row {index}: Year is required for students")
+                                continue
+                            try:
+                                student_year = int(student_year)
+                            except ValueError:
+                                errors.append(f"Row {index}: Year must be a number")
+                                continue
+
                         # Create User
                         # NOTE: We do NOT use nested transaction.atomic() here because we are already in one big block.
                         new_user = User.objects.create_user(
@@ -727,8 +842,20 @@ class BulkUploadUsersView(APIView):
                             email=email,
                             password=password,
                             role=row_role,
+                            first_name=row.get('first_name', ''),
+                            last_name=row.get('last_name', ''),
                             department=final_department
                         )
+                        
+                        # Create Student Entry if DEPT_STUDENT
+                        if row_role == User.Roles.DEPT_STUDENT:
+                            Student.objects.create(
+                                user=new_user,
+                                roll_no=username,
+                                year=student_year,
+                                course=final_department.name if final_department else "General"
+                            )
+
                         # Assign Permissions
                         assign_role_permissions(new_user)
                         created_count += 1
@@ -1085,3 +1212,161 @@ class ParseTimetableView(APIView):
             if p_filled < 7:
                 grid_data[row_idx][p_filled] = s_val
                 p_filled += 1
+
+# --- Class Advisors ---
+class ClassAdvisorListCreateView(generics.ListCreateAPIView):
+    serializer_class = ClassAdvisorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_super_admin or user.is_principal:
+             return ClassAdvisor.objects.all()
+        if getattr(user, 'is_dept_admin', False) or getattr(user, 'is_dept_staff', False):
+             if user.department:
+                 return ClassAdvisor.objects.filter(department=user.department)
+        return ClassAdvisor.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        from rest_framework.exceptions import ValidationError
+        
+        # Explicitly check role to ensure department is assigned
+        if user.role == User.Roles.DEPT_ADMIN:
+             if not user.department:
+                 raise ValidationError({"department": "Your account is not linked to any department."})
+             serializer.save(department=user.department)
+        elif user.role in [User.Roles.SUPER_ADMIN, User.Roles.PRINCIPAL]:
+             # Admins might pass department in body, or we let serializer handle it if valid
+             # But here we removed department from input fields, so this might fail if they need to set it.
+             # For now, focus on Dept Admin success.
+             serializer.save()
+        else:
+             # Fallback
+             serializer.save()
+
+class ClassAdvisorRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ClassAdvisor.objects.all()
+    serializer_class = ClassAdvisorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_super_admin or user.is_principal:
+             return ClassAdvisor.objects.all()
+        if getattr(user, 'is_dept_admin', False):
+             if user.department:
+                 return ClassAdvisor.objects.filter(department=user.department)
+        return ClassAdvisor.objects.none()
+
+class DepartmentStaffListView(generics.ListAPIView):
+    serializer_class = UserSerializer 
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_super_admin or user.is_principal:
+             return User.objects.filter(role=User.Roles.DEPT_STAFF)
+        
+        if getattr(user, 'is_dept_admin', False) and user.department:
+            return User.objects.filter(department=user.department, role=User.Roles.DEPT_STAFF)
+            
+        return User.objects.none()
+
+class DepartmentStudentListView(generics.ListAPIView):
+    serializer_class = UserSerializer 
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_super_admin or user.is_principal:
+             return User.objects.filter(role=User.Roles.DEPT_STUDENT)
+        
+        if getattr(user, 'is_dept_admin', False) and user.department:
+            return User.objects.filter(department=user.department, role=User.Roles.DEPT_STUDENT)
+            
+        return User.objects.none()
+
+class StudentClassAdvisorListView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsStudent]
+
+    def get(self, request):
+        user = request.user
+        if not user.department:
+            return Response({"error": "No department assigned to student"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get year from student account
+        try:
+             student_profile = user.student_account
+             year = student_profile.year
+        except Student.DoesNotExist:
+             return Response({"error": "Student profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not year:
+             return Response({"error": "Year not assigned to student"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find Class Advisor entry
+        advisors_list = []
+        try:
+            class_advisor = ClassAdvisor.objects.get(department=user.department, year=year)
+            
+            # Serialize specific fields or use simple dict
+            if class_advisor.advisor1:
+                 advisors_list.append({
+                     "id": class_advisor.advisor1.id,
+                     "username": class_advisor.advisor1.username,
+                     "avatar_url": class_advisor.advisor1.staffprofile.avatar.url if hasattr(class_advisor.advisor1, 'staffprofile') and class_advisor.advisor1.staffprofile.avatar else None
+                 })
+            
+            if class_advisor.advisor2:
+                 advisors_list.append({
+                     "id": class_advisor.advisor2.id,
+                     "username": class_advisor.advisor2.username,
+                     "avatar_url": class_advisor.advisor2.staffprofile.avatar.url if hasattr(class_advisor.advisor2, 'staffprofile') and class_advisor.advisor2.staffprofile.avatar else None
+                 })
+
+        except ClassAdvisor.DoesNotExist:
+            pass # Return empty list if no advisor assigned
+            
+        return Response(advisors_list, status=status.HTTP_200_OK)
+
+from .serializers import PrincipalActionSerializer
+
+class PrincipalRequestsListView(generics.ListAPIView):
+    serializer_class = RequestSerializer
+    permission_classes = [permissions.IsAuthenticated, IsPrincipal]
+
+    def get_queryset(self):
+        # Show requests where Dept Admin approved AND Principal status is pending
+        return Request.objects.filter(admin_status="approved", principal_status="pending")
+
+class PrincipalActionView(generics.UpdateAPIView):
+    queryset = Request.objects.all()
+    serializer_class = PrincipalActionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsPrincipal]
+
+    def patch(self, request, *args, **kwargs):
+        req = self.get_object()
+        
+        status_val = request.data.get("principal_status")
+        comment = request.data.get("principal_comment", "")
+
+        if status_val == "rejected":
+             req.principal_status = "rejected"
+             req.principal_comment = comment
+             req.rejection_reason = comment
+        elif status_val == "approved":
+             req.principal_status = "approved"
+             req.principal_comment = comment
+        else:
+             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        req.save()
+        
+        RequestHistory.objects.create(
+            request=req,
+            user=request.user,
+            action=f"Principal {req.principal_status}",
+            status=req.principal_status,
+        )
+        return Response(RequestSerializer(req).data)

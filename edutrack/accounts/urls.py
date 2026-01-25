@@ -42,6 +42,10 @@ urlpatterns = [
     path("request/admin/list/", AdminRequestsListView.as_view(), name="admin-requests-list"),
     path("request/admin/<int:pk>/", AdminActionView.as_view(), name="admin-action"),
 
+    # Principal
+    path("request/principal/list/", views.PrincipalRequestsListView.as_view(), name="principal-requests-list"),
+    path("request/principal/<int:pk>/", views.PrincipalActionView.as_view(), name="principal-action"),
+
     path("notice/list/", NoticeListView.as_view(), name="notice-list"),
     path("notice/create/", NoticeCreateView.as_view(), name="notice-create"),
     path("notice/<int:pk>/delete/", NoticeDeleteView.as_view(), name="notice-delete"),
@@ -61,6 +65,11 @@ urlpatterns = [
     path("bulk-upload/", BulkUploadUsersView.as_view(), name="bulk-upload-users"),
     path("departments/", DepartmentListCreateView.as_view(), name="department-list-create"),
     path("departments/<int:pk>/", DepartmentDetailView.as_view(), name="department-detail"),
+    path("class-advisors/", views.ClassAdvisorListCreateView.as_view(), name="class-advisor-list-create"),
+    path("class-advisors/<int:pk>/", views.ClassAdvisorRetrieveUpdateDestroyView.as_view(), name="class-advisor-detail"),
+    path("department-staff/", views.DepartmentStaffListView.as_view(), name="department-staff-list"),
+    path("department-student/", views.DepartmentStudentListView.as_view(), name="department-student-list"),
+    path("student/class-advisors/", views.StudentClassAdvisorListView.as_view(), name="student-class-advisors"),
 
     path("whoami/", whoami, name="whoami"),
 ]

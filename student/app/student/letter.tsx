@@ -59,7 +59,12 @@ export default function StudentLettersScreen() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setLetters(data);
+      if (Array.isArray(data)) {
+        setLetters(data);
+      } else {
+        console.log("Failed to fetch letters:", data);
+        setLetters([]);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
       Alert.alert("Error", "Failed to fetch letters");

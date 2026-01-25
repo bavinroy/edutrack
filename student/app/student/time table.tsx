@@ -83,9 +83,13 @@ export default function StudentTimetable() {
       );
       if (!res.ok) throw new Error("Failed to load");
       const data = await res.json();
-      setTimetables(data);
-      if (data.length > 0) {
-        setSelected(data[0]);
+      if (Array.isArray(data)) {
+        setTimetables(data);
+        if (data.length > 0) {
+          setSelected(data[0]);
+        }
+      } else {
+        setTimetables([]);
       }
     } catch (err) {
       console.log(err);

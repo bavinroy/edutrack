@@ -162,9 +162,19 @@ export default function StaffRequestsScreen() {
               <View style={{ flexDirection: "row", marginTop: 10 }}>
                 <TouchableOpacity
                   style={[styles.button, { flex: 1, backgroundColor: "green", marginRight: 5 }]}
-                  onPress={() => currentRequest && handleAction(currentRequest.id, "approved")}
+                  onPress={() => {
+                    if (!currentRequest) return;
+                    Alert.alert(
+                      "Confirm Action",
+                      "Are you sure you want to approve and send this request to the Department Admin?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Send", onPress: () => handleAction(currentRequest.id, "approved") }
+                      ]
+                    );
+                  }}
                 >
-                  <Text style={styles.buttonText}>Approve</Text>
+                  <Text style={styles.buttonText}>Send to Dept Admin</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

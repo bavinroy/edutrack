@@ -26,6 +26,8 @@ type Request = {
   staff_status: string;
   admin_status: string;
   admin_comment?: string;
+  principal_status: string;
+  principal_comment?: string;
   created_at: string;
 };
 
@@ -48,11 +50,19 @@ export default function AdminRequestsScreen() {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
 
-      const res = await fetch(`${API_BASE_URL}/api/request/admin/list/`, {
+      const res = await fetch(`${API_BASE_URL}/api/request/principal/list/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      setRequests(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRequests(data);
+        } else {
+          setRequests([]);
+        }
+      } else {
+        console.log("Failed to fetch principal requests");
+      }
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Failed to load requests");
@@ -71,7 +81,7 @@ export default function AdminRequestsScreen() {
       if (!token) return;
 
       const res = await fetch(
-        `${API_BASE_URL}/api/request/admin/${requestId}/`,
+        `${API_BASE_URL}/api/request/principal/${requestId}/`,
         {
           method: "PATCH",
           headers: {
@@ -79,8 +89,8 @@ export default function AdminRequestsScreen() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            admin_status: action,
-            admin_comment: comment,
+            principal_status: action,
+            principal_comment: comment,
           }),
         }
       );
@@ -103,7 +113,8 @@ export default function AdminRequestsScreen() {
   };
 
   const renderRequest = ({ item }: { item: Request }) => {
-    const pending = item.admin_status === "pending";
+    if (!item) return null;
+    const pending = (item.principal_status || "pending") === "pending";
 
     return (
       <TouchableOpacity
@@ -120,13 +131,18 @@ export default function AdminRequestsScreen() {
           setModalVisible(true);
         }}
       >
-        <Text style={styles.title}>📄 {item.letter.title}</Text>
+        <Text style={styles.title}>📄 {item.letter?.title || "No Title"}</Text>
         <Text style={styles.meta}>
-          Student: {item.student_name} • Staff: {item.staff_status} • Admin:{" "}
-          {item.admin_status}
+          Student: {item.student_name || "Unknown"}
         </Text>
-        {item.admin_comment && (
-          <Text style={styles.comment}>Comment: {item.admin_comment}</Text>
+        <Text style={styles.meta}>
+          Staff: {item.staff_status} • Admin: {item.admin_status}
+        </Text>
+        <Text style={[styles.meta, { fontWeight: 'bold', color: pending ? 'orange' : '#333' }]}>
+          Principal: {(item.principal_status || "Pending").toUpperCase()}
+        </Text>
+        {item.principal_comment && (
+          <Text style={styles.comment}>My Comment: {item.principal_comment}</Text>
         )}
       </TouchableOpacity>
     );
@@ -158,20 +174,22 @@ export default function AdminRequestsScreen() {
           <View style={styles.modalContent}>
             <ScrollView>
               <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 8 }}>
-                {currentRequest?.letter.title}
+                {currentRequest?.letter?.title}
               </Text>
               <Text style={{ marginBottom: 10 }}>
-                {currentRequest?.letter.content}
+                {currentRequest?.letter?.content}
               </Text>
               <Text style={{ marginBottom: 5 }}>
                 Student: {currentRequest?.student_name}
               </Text>
-              <Text>Status: Staff - {currentRequest?.staff_status}</Text>
-              <Text>Admin - {currentRequest?.admin_status}</Text>
+              <Text style={{ color: '#555' }}>Staff Status: {currentRequest?.staff_status}</Text>
+              <Text style={{ color: '#555' }}>Admin Status: {currentRequest?.admin_status}</Text>
+              {currentRequest?.admin_comment && <Text style={{ fontStyle: 'italic', marginBottom: 5 }}>Admin Note: {currentRequest.admin_comment}</Text>}
+              <Text style={{ fontWeight: 'bold', marginVertical: 5 }}>Principal Status: {currentRequest?.principal_status}</Text>
 
               <TextInput
                 style={styles.input}
-                placeholder="Add reason if declining"
+                placeholder="Principal's comment (for rejection/approval)"
                 multiline
                 value={declineComment}
                 onChangeText={setDeclineComment}

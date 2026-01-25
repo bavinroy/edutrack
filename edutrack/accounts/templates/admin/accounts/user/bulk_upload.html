@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Bulk Upload' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div
+    style="background-color: #fff; color: #333; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div>
+            <fieldset class="module aligned" style="background: transparent; box-shadow: none; border: none;">
+                <h2 style="color: #333; margin-top: 0;">Upload Excel File</h2>
+                <div class="form-row" style="padding: 10px 0;">
+                    {{ form.as_p }}
+                </div>
+                <p class="help" style="color: #666; font-size: 14px; margin-top: 10px; line-height: 1.5;">
+                    <strong style="color: #333;">Supported formats:</strong> .xlsx, .csv<br>
+                    <strong style="color: #333;">Required Columns:</strong> username, email, role (STUDENT/STAFF/ADMIN),
+                    department<br>
+                    <strong style="color: #333;">Optional:</strong> first_name, last_name, password
+                </p>
+            </fieldset>
+            <div class="submit-row" style="background: transparent; padding: 20px 0 0 0; text-align: left;">
+                <input type="submit" value="{% trans 'Upload' %}" class="default"
+                    style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;" />
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

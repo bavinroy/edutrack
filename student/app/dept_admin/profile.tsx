@@ -112,14 +112,16 @@ export default function DeptAdminProfileScreen() {
         setLoading(true);
         try {
             const formData = new FormData();
-            formData.append("phone_number", profile.phone_number);
-            formData.append("department", profile.department);
-            formData.append("designation", profile.designation);
+            if (profile.phone_number) formData.append("phone_number", profile.phone_number);
+            if (profile.department) formData.append("department", profile.department);
+            if (profile.designation) formData.append("designation", profile.designation);
 
-            if (avatarUri) {
-                const filename = avatarUri.split("/").pop();
-                const match = /\.(\w+)$/.exec(filename || "");
-                const type = match ? `image/${match[1]}` : `image`;
+            if (avatarUri && !avatarUri.startsWith("http")) {
+                const filename = avatarUri.split("/").pop() || "profile.jpg";
+                const match = /\.(\w+)$/.exec(filename);
+                let type = match ? `image/${match[1]}` : `image/jpeg`;
+                if (type === 'image/jpg') type = 'image/jpeg';
+
                 formData.append("avatar", { uri: avatarUri, name: filename, type } as any);
             }
 
@@ -135,7 +137,8 @@ export default function DeptAdminProfileScreen() {
                 setProfile({ ...profile, ...data });
                 if (data.avatar) setAvatarUri(data.avatar);
             } else {
-                Alert.alert("Error", data.detail || "Failed to update profile");
+                const errorMsg = data.detail || (data.errors ? JSON.stringify(data.errors, null, 2) : "Failed to update profile");
+                Alert.alert("Data Error", errorMsg);
             }
         } catch (err) {
             console.error(err);
@@ -178,15 +181,14 @@ export default function DeptAdminProfileScreen() {
                     <TextInput
                         style={styles.input}
                         value={profile.department}
-                        onChangeText={(text) => setProfile({ ...profile, department: text })}
                         editable={false} // Dept Admin shouldn't change their department freely via profile text?
                     />
 
-                    <Text style={styles.label}>Designation</Text>
+                    <Text style={styles.label}>Role</Text>
                     <TextInput
                         style={styles.input}
-                        value={profile.designation}
-                        onChangeText={(text) => setProfile({ ...profile, designation: text })}
+                        value={profile.role}
+                        editable={false}
                     />
 
                 </View>

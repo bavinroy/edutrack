@@ -46,6 +46,14 @@ export default function StudentDocuments() {
       if (!res.ok) throw new Error("Failed to fetch documents");
 
       const data = await res.json();
+
+      if (!Array.isArray(data)) {
+        console.log("Documents data is not array:", data);
+        setDocs([]);
+        setLoading(false);
+        return;
+      }
+
       const absoluteData = data.map((doc: any) => ({
         ...doc,
         file: doc.file.startsWith("http")

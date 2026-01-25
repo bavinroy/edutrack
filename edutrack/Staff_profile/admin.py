@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import StaffProfile
 
-# Register your models here.
+# StaffProfile is hidden from Admin Panel as requested
+# admin.site.register(StaffProfile)

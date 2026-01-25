@@ -89,14 +89,19 @@ export default function MyDepartmentScreen() {
                         <Text style={styles.btnText}>Bulk Upload Users</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFA500' }]} onPress={() => alert("Feature coming soon")}>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFA500' }]} onPress={() => router.push("/dept_admin/staff_list")}>
                         <Ionicons name="people" size={24} color="#fff" />
                         <Text style={styles.btnText}>View Staff List</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFA500' }]} onPress={() => alert("Feature coming soon")}>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFA500' }]} onPress={() => router.push("/dept_admin/student_list")}>
                         <Ionicons name="school" size={24} color="#fff" />
                         <Text style={styles.btnText}>View Student List</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#8A2BE2' }]} onPress={() => router.push("/dept_admin/class_advisors")}>
+                        <Ionicons name="people-circle" size={24} color="#fff" />
+                        <Text style={styles.btnText}>Manage Class Advisors</Text>
                     </TouchableOpacity>
                 </View>
             </View>

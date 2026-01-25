@@ -207,6 +207,10 @@ export default function BulkUploadScreen() {
                                 <Text style={[styles.colName, { color: '#d9534f' }]}>* department</Text>
                                 <Text style={styles.colDesc}>Exact name of the department (e.g. "CSE")</Text>
                             </View>
+                            <View style={styles.tableRow}>
+                                <Text style={[styles.colName, { color: '#d9534f' }]}>* year</Text>
+                                <Text style={styles.colDesc}>Mandatory for Students (e.g. 1, 2, 3, 4)</Text>
+                            </View>
 
                             <View style={{ height: 20 }} />
                         </ScrollView>

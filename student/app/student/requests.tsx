@@ -42,7 +42,7 @@ export default function RequestsScreen() {
       const [lettersRes, requestsRes, staffRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/letters/`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/api/request/student/`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE_URL}/api/staff/list/`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/student/class-advisors/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setLetters(await lettersRes.json());
       setRequests(await requestsRes.json());
@@ -100,19 +100,60 @@ export default function RequestsScreen() {
     </View>
   );
 
+  type Request = {
+    id: number;
+    letter: Letter;
+    staff_status: string;
+    admin_status: string;
+    principal_status: string;
+    created_at: string
+  };
+
+  // ... inside component ...
+
   const renderRequest = ({ item }: { item: Request }) => {
     const staffStatus = item.staff_status ?? "pending";
     const adminStatus = item.admin_status ?? "pending";
-    const getProgress = () => staffStatus === "approved" && adminStatus === "approved" ? 1 : staffStatus === "approved" || adminStatus === "approved" ? 0.5 : 0;
+    const principalStatus = item.principal_status ?? "pending";
+
+    // Logic: 0 = pending, 0.33 = staff approved, 0.66 = admin approved, 1 = principal approved
+    // If Admin finalizes (principal auto-approved), it jumps to 1.
+    // Ideally backend sets principal_status="approved" if admin finalizes.
+
+    let progress = 0;
+    let statusText = "Pending";
+
+    if (staffStatus === "approved") {
+      progress = 0.33;
+      statusText = "Staff Approved";
+      if (adminStatus === "approved") {
+        progress = 0.66;
+        statusText = "Admin Approved";
+        if (principalStatus === "approved") {
+          progress = 1;
+          statusText = "Fully Approved";
+        } else if (principalStatus === "rejected") {
+          progress = 0.66; // Stalled at admin
+          statusText = "Rejected by Principal";
+        }
+      } else if (adminStatus === "rejected") {
+        statusText = "Rejected by Admin";
+      }
+    } else if (staffStatus === "rejected") {
+      statusText = "Rejected by Staff";
+    }
+
     const statusColor = (status: string) => status === "approved" ? "green" : status === "rejected" ? "red" : "#ffa500";
-    const progress = getProgress();
+
     return (
       <View style={styles.requestCard}>
         <Text style={styles.title}>📄 {item.letter.title}</Text>
         <View style={styles.statusRow}><Text>Staff:</Text><Text style={{ color: statusColor(staffStatus), fontWeight: "bold" }}>{staffStatus === "approved" ? "✅ Approved" : staffStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
         <View style={styles.statusRow}><Text>Admin:</Text><Text style={{ color: statusColor(adminStatus), fontWeight: "bold" }}>{adminStatus === "approved" ? "✅ Approved" : adminStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
+        <View style={styles.statusRow}><Text>Principal:</Text><Text style={{ color: statusColor(principalStatus), fontWeight: "bold" }}>{principalStatus === "approved" ? "✅ Approved" : principalStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
+
         <View style={styles.progressBarBackground}><View style={[styles.progressBarFill, { flex: progress }]} /><View style={{ flex: 1 - progress }} /></View>
-        <Text style={styles.progressText}>{progress === 1 ? "Fully Approved" : progress === 0.5 ? "Partially Approved" : "Pending"}</Text>
+        <Text style={styles.progressText}>{statusText}</Text>
       </View>
     );
   };

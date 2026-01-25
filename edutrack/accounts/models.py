@@ -101,6 +101,9 @@ class User(AbstractUser):
         choices=Roles.choices,
         default=Roles.DEPT_STUDENT
     )
+
+    # Field to store the non-unique "Username" desired by the user
+    display_name = models.CharField(max_length=150, blank=True, null=True, verbose_name="Display Name")
     
     # Link every user to a department directly for RBAC
     department = models.ForeignKey(
@@ -159,6 +162,7 @@ class User(AbstractUser):
 
 
 
+
 class Student(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -172,8 +176,19 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.roll_no} - {self.user.username}"
-    
-    # Department moved to top
+
+
+class ClassAdvisor(models.Model):
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='class_advisors')
+    year = models.IntegerField()
+    advisor1 = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='advisor1_classes', on_delete=models.SET_NULL, null=True, blank=True)
+    advisor2 = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='advisor2_classes', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('department', 'year')
+
+    def __str__(self):
+        return f"{self.department.name} - Year {self.year}"
 
 
 class Subject(models.Model):
@@ -230,8 +245,16 @@ class Request(models.Model):
     related_name="assigned_requests", null=True, blank=True
     )
     staff_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    admin_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     staff_comment = models.TextField(blank=True, null=True)
+    
+    admin_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    admin_comment = models.TextField(blank=True, null=True)
+
+    principal_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    principal_comment = models.TextField(blank=True, null=True)
+
+    rejection_reason = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_fully_approved(self):

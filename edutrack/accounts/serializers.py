@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     User, Student, Department, Subject, Document, TimeTable, 
-    Letter, Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment
+    Letter, Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment, ClassAdvisor
 )
 
 # --- User Serializers ---
@@ -35,20 +35,50 @@ class UserCreateSerializer(serializers.ModelSerializer):
     """
     Specialized serializer for admin-created users with department link.
     """
-    password = serializers.CharField(write_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(), source='department', required=False, allow_null=True
-    )
+    year = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password", "department_id", "role"]
+        fields = ["id", "username", "email", "password", "department_id", "role", "year"]
+
+    def validate(self, data):
+        # If creating a student, 'year', 'first_name', 'last_name', and 'department' are mandatory
+        if data.get('role') == User.Roles.DEPT_STUDENT:
+             if not data.get('year'):
+                 raise serializers.ValidationError({"year": "Year is required for students."})
+             if not data.get('first_name'):
+                 raise serializers.ValidationError({"first_name": "First Name is required for students."})
+             if not data.get('last_name'):
+                 raise serializers.ValidationError({"last_name": "Last Name is required for students."})
+             
+             # Check department: either in data OR already in instance (not applicable for create) OR via context?
+             # NOTE: Views assign department via serializer.save() kwargs if the user is Dept Admin.
+             # But validating existence here checks 'data'. 
+             # Only strictly require it in 'data' if the request user is SUPER_ADMIN/PRINCIPAL who must select it.
+             # However, serializer context has 'request'.
+             request = self.context.get('request')
+             if request and request.user.role in [User.Roles.SUPER_ADMIN, User.Roles.PRINCIPAL]:
+                 if not data.get('department_id'):
+                     raise serializers.ValidationError({"department_id": "Department is required for students created by Admins."})
+        return data
 
     def create(self, validated_data):
         password = validated_data.pop("password")
+        year_val = validated_data.pop("year", None)
+        
         user = User(**validated_data)
         user.set_password(password)
         user.save()
+        
+        # If student, create Student entry
+        if user.role == User.Roles.DEPT_STUDENT:
+             Student.objects.create(
+                 user=user,
+                 roll_no=user.username, # Default roll no to username
+                 year=year_val,
+                 course=user.department.name if user.department else "General"
+             )
+        
         return user
 
 class BulkUploadSerializer(serializers.Serializer):
@@ -70,12 +100,24 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 # --- Student ---
 
+
 class StudentSerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer(read_only=True)
+    department_name = serializers.CharField(source='user.department.name', read_only=True)
 
     class Meta:
         model = Student
-        fields = ['id', 'user', 'department', 'roll_number']
+        fields = ['id', 'user', 'department_name', 'roll_no', 'year', 'course']
+
+class ClassAdvisorSerializer(serializers.ModelSerializer):
+    advisor1_name = serializers.StringRelatedField(source='advisor1', read_only=True)
+    advisor2_name = serializers.StringRelatedField(source='advisor2', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    department = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ClassAdvisor
+        fields = ['id', 'department', 'department_name', 'year', 'advisor1', 'advisor1_name', 'advisor2', 'advisor2_name']
 
 # --- Department & Subject ---
 
@@ -163,10 +205,20 @@ class RequestActionSerializer(serializers.ModelSerializer):
         model = Request
         fields = ["staff_status", "staff_comment"]
 
+class PrincipalActionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Request
+        fields = ["principal_status", "principal_comment"]
+
 class AdminActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Request
         fields = ["admin_status", "admin_comment"]
+
+class PrincipalActionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Request
+        fields = ["principal_status", "principal_comment"]
 
 # --- Notices ---
 
