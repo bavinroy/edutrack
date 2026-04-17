@@ -1,168 +1,59 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  ActivityIndicator,
-} from "react-native";
+// app/admin/search.tsx
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useTheme } from "../../context/ThemeContext";
 
-export default function staffResult() {
+export default function AdminSearchPlaceholder() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // ⏳ simulate small loading delay
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleNav = (path: string) => {
-    router.push(path as any);
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#30e4de" />
-        <Text style={styles.loaderText}>Loading...</Text>
-      </View>
-    );
-  }
+  const { isDark, theme: themeColors } = useTheme();
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/back.jpg")}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      {/* 🔹 Header */}
-      <View style={styles.header}>
-        <Ionicons
-          name="arrow-back"
-          size={24}
-          color="#00B9BD"
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>Search</Text>
-        <View style={styles.headerIcons}>
+    <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: themeColors.headerBg, borderBottomColor: themeColors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: themeColors.text }]}>Search</Text>
+          <View style={{ width: 40 }} />
         </View>
-      </View>
 
-      {/* 🔹 Coming Soon Content */}
-      <View style={styles.centerContent}>
-        <Ionicons name="time-outline" size={70} color="#30e4de" />
-        <Text style={styles.comingText}>Coming Soon...</Text>
-        <Text style={styles.subText}>
-          Stay tuned! search section will be available soon.
-        </Text>
-      </View>
+        <View style={styles.content}>
+          <View style={[styles.illustration, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }]}>
+            <Ionicons name="search" size={80} color="#6366F120" />
+          </View>
+          <Text style={[styles.title, { color: themeColors.text }]}>Coming Soon</Text>
+          <Text style={[styles.desc, { color: themeColors.subText }]}>
+            We are working on a powerful search tool to help you find students and staff members in seconds.
+          </Text>
 
-      {/* 🔹 Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons
-          name="home"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/admin/dashboard")}
-        />
-        <Ionicons
-          name="search"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/admin/search")}
-        />
-        <Ionicons
-          name="grid-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/admin/dashboard")}
-        />
-        <Ionicons
-          name="download-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/admin/downloads")}
-        />
-        <Ionicons
-          name="person-circle-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/admin/profile")}
-        />
-      </View>
-    </ImageBackground>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#6366F1' }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.actionText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
+  backBtn: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
 
-  // 🔹 Loader
-  loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  loaderText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#30e4de",
-    fontWeight: "600",
-  },
-
-  // 🔹 Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    marginBottom: 10,
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#00B9BD",
-  },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    marginLeft: 15,
-  },
-
-  // 🔹 Content
-  centerContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 10,
-  },
-  comingText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#30e4de",
-    marginTop: 10,
-  },
-  subText: {
-    fontSize: 16,
-    color: "#555",
-    textAlign: "center",
-    marginHorizontal: 30,
-  },
-
-  // 🔹 Bottom Navigation
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#30e4de",
-    paddingVertical: 12,
-  },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  illustration: { width: 140, height: 140, borderRadius: 70, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+  title: { fontSize: 24, fontWeight: '900', marginBottom: 12 },
+  desc: { fontSize: 15, textAlign: 'center', lineHeight: 24, marginBottom: 40, fontWeight: '600' },
+  actionBtn: { paddingHorizontal: 40, paddingVertical: 16, borderRadius: 20, elevation: 8, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10 },
+  actionText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 }
 });

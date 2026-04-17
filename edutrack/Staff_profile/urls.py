@@ -10,6 +10,7 @@ urlpatterns = [
     path("profile/", views.get_staff_profile, name="get_staff_profile"),
     path("profile/update/", views.update_staff_profile, name="update_staff_profile"),
     path("profile/change-password/", views.change_staff_password, name="change_staff_password"),
+    path("profile/<int:user_id>/", views.StaffProfileDetailView.as_view(), name="staff-profile-detail"),
     path("list/", StaffProfileListView.as_view(), name="staff-list"),
 
     # Admin action to create staff users

@@ -1,20 +1,19 @@
 # staff_profile/views.py
 import logging
-from rest_framework import status
+from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .models import StaffProfile
-from .serializers import StaffProfileSerializer, UpdateStaffProfileSerializer, CreateStaffUserSerializer
-from rest_framework import status
 from django.contrib.auth.password_validation import validate_password
-from rest_framework import generics, permissions
-from django.contrib.auth import get_user_model
-from .serializers import StaffProfileSerializer
-from rest_framework.generics import ListAPIView
 
+from Staff_profile.models import StaffProfile
+from Staff_profile.serializers import (
+    StaffProfileSerializer, 
+    UpdateStaffProfileSerializer, 
+    CreateStaffUserSerializer
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -43,7 +42,7 @@ def get_staff_profile(request):
 # -----------------------------
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def update_staff_profile(request):
     user = request.user
     logger.info(f"Updating profile for user: {user.username}, files={list(request.FILES.keys())}")
@@ -81,7 +80,6 @@ def create_staff_user(request):
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-from django.contrib.auth.password_validation import validate_password
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -118,3 +116,20 @@ class StaffProfileListView(generics.ListAPIView):
     queryset = StaffProfile.objects.select_related("user").all()
     serializer_class = StaffProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class StaffProfileDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/staff/profile/<user_id>/
+    Returns profile for a specific user
+    """
+    serializer_class = StaffProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'user_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        # HOD can see profiles in their dept
+        if user.is_dept_admin or user.is_super_admin or user.is_principal:
+            return StaffProfile.objects.all()
+        # Staff can only see their own
+        return StaffProfile.objects.filter(user=user)

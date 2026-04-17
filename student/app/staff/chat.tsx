@@ -3,13 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   ActivityIndicator,
+  StatusBar
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import StaffBottomNav from "../../components/StaffBottomNav";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { theme } from "../theme";
 
-export default function staffResult() {
+export default function StaffChat() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -17,152 +20,104 @@ export default function staffResult() {
     // ⏳ simulate small loading delay
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 1500);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleNav = (path: string) => {
-    router.push(path as any);
-  };
 
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#30e4de" />
-        <Text style={styles.loaderText}>Loading...</Text>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/back.jpg")}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
       {/* 🔹 Header */}
       <View style={styles.header}>
         <Ionicons
           name="arrow-back"
           size={24}
-          color="#00B9BD"
+          color={theme.colors.onSurface}
           onPress={() => router.back()}
         />
         <Text style={styles.headerTitle}>Chat</Text>
-        <View style={styles.headerIcons}>
-        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       {/* 🔹 Coming Soon Content */}
       <View style={styles.centerContent}>
-        <Ionicons name="time-outline" size={70} color="#30e4de" />
+        <View style={styles.iconBox}>
+          <Ionicons name="chatbubbles-outline" size={48} color={theme.colors.primary} />
+        </View>
         <Text style={styles.comingText}>Coming Soon...</Text>
         <Text style={styles.subText}>
-          Stay tuned! chat section will be available soon.
+          Stay tuned! The interactive chat features will be available soon.
         </Text>
       </View>
 
       {/* 🔹 Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons
-          name="home"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/dashboard")}
-        />
-        <Ionicons
-          name="search"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/search")}
-        />
-        <Ionicons
-          name="grid-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/dashboard")}
-        />
-        <Ionicons
-          name="download-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/downloads")}
-        />
-        <Ionicons
-          name="person-circle-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/profile")}
-        />
-      </View>
-    </ImageBackground>
+      <StaffBottomNav />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
+  container: {
     flex: 1,
+    backgroundColor: '#FAFAFA'
   },
-
-  // 🔹 Loader
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#fff",
   },
-  loaderText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#30e4de",
-    fontWeight: "600",
-  },
-
-  // 🔹 Header
+  
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 20,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
     justifyContent: "space-between",
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#00B9BD",
-  },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    marginLeft: 15,
+    color: theme.colors.onSurface,
   },
 
-  // 🔹 Content
   centerContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 10,
+    paddingHorizontal: 40,
+    paddingBottom: 50
+  },
+  iconBox: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: theme.colors.primaryContainer + '30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20
   },
   comingText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#30e4de",
-    marginTop: 10,
+    fontSize: 24,
+    fontWeight: "700",
+    color: theme.colors.onSurface,
+    marginBottom: 8,
   },
   subText: {
-    fontSize: 16,
-    color: "#555",
+    fontSize: 14,
+    color: theme.colors.outline,
     textAlign: "center",
-    marginHorizontal: 30,
-  },
-
-  // 🔹 Bottom Navigation
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#30e4de",
-    paddingVertical: 12,
+    lineHeight: 22
   },
 });

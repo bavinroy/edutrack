@@ -3,13 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   ActivityIndicator,
+  StatusBar,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import StaffBottomNav from "../../components/StaffBottomNav";
+import { theme } from "../theme";
 
-export default function staffResult() {
+export default function StaffSearchScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -17,152 +20,100 @@ export default function staffResult() {
     // ⏳ simulate small loading delay
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 1500);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleNav = (path: string) => {
-    router.push(path as any);
-  };
 
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#30e4de" />
-        <Text style={styles.loaderText}>Loading...</Text>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/back.jpg")}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      {/* 🔹 Header */}
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+
+      {/* Header */}
       <View style={styles.header}>
-        <Ionicons
-          name="arrow-back"
-          size={24}
-          color="#00B9BD"
-          onPress={() => router.back()}
-        />
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Search</Text>
-        <View style={styles.headerIcons}>
-        </View>
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* 🔹 Coming Soon Content */}
+      {/* Main Content */}
       <View style={styles.centerContent}>
-        <Ionicons name="time-outline" size={70} color="#30e4de" />
-        <Text style={styles.comingText}>Coming Soon...</Text>
+        <View style={styles.iconCircle}>
+          <Ionicons name="search" size={64} color={theme.colors.primary} />
+        </View>
+        <Text style={styles.comingText}>Search Coming Soon</Text>
         <Text style={styles.subText}>
-          Stay tuned! search section will be available soon.
+          We are building a powerful search tool to help you find students, documents, and notices instantly.
         </Text>
       </View>
 
-      {/* 🔹 Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons
-          name="home"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/dashboard")}
-        />
-        <Ionicons
-          name="search"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/search")}
-        />
-        <Ionicons
-          name="grid-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/dashboard")}
-        />
-        <Ionicons
-          name="download-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/downloads")}
-        />
-        <Ionicons
-          name="person-circle-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/staff/profile")}
-        />
-      </View>
-    </ImageBackground>
+      <StaffBottomNav />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
+  container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
-
-  // 🔹 Loader
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  loaderText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#30e4de",
-    fontWeight: "600",
+    backgroundColor: theme.colors.background,
   },
 
-  // 🔹 Header
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    marginBottom: 10,
-    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#00B9BD",
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.onSurface
   },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    marginLeft: 15,
-  },
+  headerBtn: { padding: 5 },
 
-  // 🔹 Content
   centerContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 10,
+    paddingHorizontal: 40,
+    paddingBottom: 100, // accommodate bottom nav
+  },
+  iconCircle: {
+    width: 120, height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.colors.primaryContainer + '40',
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 30
   },
   comingText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#30e4de",
-    marginTop: 10,
+    color: theme.colors.onSurface,
+    marginBottom: 15,
+    textAlign: 'center'
   },
   subText: {
     fontSize: 16,
-    color: "#555",
+    color: theme.colors.onSurfaceVariant,
     textAlign: "center",
-    marginHorizontal: 30,
-  },
-
-  // 🔹 Bottom Navigation
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#30e4de",
-    paddingVertical: 12,
+    lineHeight: 24
   },
 });

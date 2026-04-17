@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm
-from .models import (
+from accounts.models import (
     User, Department, Student, TimeTable, Subject, ClassAdvisor, 
     Document, Letter, Request, RequestHistory, Notice, 
     NoticeAcknowledgement, NoticeComment
@@ -246,7 +246,7 @@ class CustomUserAdmin(UserAdmin):
         from django.contrib import messages
         from django.db import transaction
         import pandas as pd
-        from .models import User, Department, Student
+        from accounts.models import User, Department, Student
 
         if request.method == "POST":
             excel_file = request.FILES.get("file")
@@ -425,7 +425,7 @@ class CustomUserAdmin(UserAdmin):
         if obj.role == User.Roles.DEPT_ADMIN:
             from django.contrib.auth.models import Permission
             from django.contrib.contenttypes.models import ContentType
-            from .models import Notice, Document, Letter, Request, TimeTable, Subject
+            from accounts.models import Notice, Document, Letter, Request, TimeTable, Subject
             
             # List of models to grant full management access (Add, Change, Delete, View)
             # UPDATED with new models to match mobile/frontend features

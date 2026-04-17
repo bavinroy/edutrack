@@ -11,11 +11,13 @@ import {
   SafeAreaView,
   Modal,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import { useTheme } from "../../context/ThemeContext";
 
 interface Letter {
   id: number;
@@ -27,58 +29,33 @@ interface Letter {
 
 export default function StudentLettersScreen() {
   const router = useRouter();
+  const { isDark, theme: themeColors } = useTheme();
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isShared, setIsShared] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
   const [filter, setFilter] = useState<"all" | "shared" | "private">("all");
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   const API_URL = `${API_BASE_URL}/api/letters/`;
 
-  // Fetch current logged-in user and letters
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      const username = await AsyncStorage.getItem("username"); // adjust key if different
-      setCurrentUser(username);
-    };
-    fetchCurrentUser();
-    fetchLetters();
-  }, []);
+  useEffect(() => { fetchLetters(); }, []);
 
-  // Fetch letters
   const fetchLetters = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("accessToken");
-      const res = await fetch(API_URL, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(API_URL, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setLetters(data);
-      } else {
-        console.log("Failed to fetch letters:", data);
-        setLetters([]);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-      Alert.alert("Error", "Failed to fetch letters");
-    } finally {
-      setLoading(false);
-    }
+      if (Array.isArray(data)) setLetters(data);
+    } catch (err) { }
+    finally { setLoading(false); }
   };
 
-  // Save or update letter
   const handleSave = async () => {
-    if (!title || !content) {
-      Alert.alert("Error", "Please enter title and content");
-      return;
-    }
+    if (!title || !content) { Alert.alert("Error", "Missing title or content"); return; }
     const token = await AsyncStorage.getItem("accessToken");
     const method = editingId ? "PUT" : "POST";
     const url = editingId ? `${API_URL}${editingId}/` : API_URL;
@@ -86,231 +63,178 @@ export default function StudentLettersScreen() {
     try {
       const res = await fetch(url, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title, content, is_shared: isShared }),
       });
-
       if (res.ok) {
-        setTitle("");
-        setContent("");
-        setIsShared(false);
-        setEditingId(null);
         setModalVisible(false);
         fetchLetters();
-      } else {
-        console.log("Save failed:", await res.json());
       }
-    } catch (err) {
-      console.error("Save error:", err);
-    }
+    } catch (err) { }
   };
 
-  // Edit letter
-  const handleEdit = (letter: Letter) => {
-    setTitle(letter.title);
-    setContent(letter.content);
-    setIsShared(letter.is_shared);
-    setEditingId(letter.id);
-    setModalVisible(true); // open full screen editor
-  };
-
-  // Delete letter
   const handleDelete = async (id: number) => {
     const token = await AsyncStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${API_URL}${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API_URL}${id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) fetchLetters();
-    } catch (err) {
-      console.error("Delete error:", err);
-    }
+    } catch (err) { }
   };
 
-  const filteredLetters =
-    filter === "all"
-      ? letters
-      : letters.filter((l) => (filter === "shared" ? l.is_shared : !l.is_shared));
-
-  const handleNav = (path: string) => router.push(path as any);
+  const filteredLetters = filter === "all" ? letters : letters.filter((l) => (filter === "shared" ? l.is_shared : !l.is_shared));
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Dropdown */}
-      <TouchableOpacity style={styles.header} onPress={() => setShowMenu(!showMenu)}>
-        <Ionicons name="arrow-back" size={22} color="#30e4de" />
-        <Text style={styles.headerTitle}>LETTERS</Text>
-        <Ionicons name={showMenu ? "chevron-up" : "chevron-down"} size={22} color="#30e4de" />
-      </TouchableOpacity>
-
-      {showMenu && (
-        <View style={styles.menuBox}>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/student/fees")}>
-            <Ionicons name="cash-outline" size={18} color="#fff" />
-            <Text style={styles.menuText}>Fees</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+        <View style={[styles.header, { backgroundColor: themeColors.headerBg }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/student/results")}>
-            <Ionicons name="ribbon-outline" size={18} color="#fff" />
-            <Text style={styles.menuText}>Results</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/student/time table")}>
-            <Ionicons name="calendar-outline" size={18} color="#fff" />
-            <Text style={styles.menuText}>Time Table</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.text }]}>Form Center</Text>
+          <TouchableOpacity onPress={() => {
+              setEditingId(null); setTitle(""); setContent(""); setIsShared(false); setModalVisible(true);
+          }}>
+            <Ionicons name="add-circle-outline" size={28} color="#3B82F6" />
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* Button to open full screen typing */}
-      <TouchableOpacity
-        style={styles.newLetterBtn}
-        onPress={() => {
-          setTitle("");
-          setContent("");
-          setIsShared(false);
-          setEditingId(null);
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add-circle-outline" size={22} color="#fff" />
-        <Text style={styles.newLetterText}>Create New Letter</Text>
-      </TouchableOpacity>
-
-      {/* Filter */}
-      <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 10 }}>
-        {["all", "shared", "private"].map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterBtn, filter === f && { backgroundColor: "#30e4de" }]}
-            onPress={() => setFilter(f as any)}
-          >
-            <Text style={[styles.menuText, filter === f && { color: "#0a0101ff" }]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Letters List */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#30e4de" />
+        <View style={styles.filterBar}>
+            {["all", "shared", "private"].map((f) => (
+                <TouchableOpacity
+                    key={f}
+                    style={[styles.filterTab, { backgroundColor: themeColors.card, borderColor: themeColors.border }, filter === f && { backgroundColor: isDark ? '#3B82F6' : '#111827', borderColor: isDark ? '#3B82F6' : '#111827' }]}
+                    onPress={() => setFilter(f as any)}
+                >
+                    <Text style={[styles.filterTabText, { color: themeColors.subText }, filter === f && { color: '#ffffff' }]}>
+                        {f.toUpperCase()}
+                    </Text>
+                </TouchableOpacity>
+            ))}
         </View>
-      ) : filteredLetters.length === 0 ? (
-        <Text style={styles.empty}>📭 No letters available</Text>
-      ) : (
-        <FlatList
-          data={filteredLetters}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.content}>{item.content}</Text>
-              <Text style={styles.meta}>
-                By {item.owner} | {item.is_shared ? "Shared" : "Private"}
-              </Text>
 
-
-              <View style={{ flexDirection: "row", marginTop: 5 }}>
-                <TouchableOpacity
-                  style={[styles.smallButton, { backgroundColor: "#30e4de" }]}
-                  onPress={() => handleEdit(item)}
-                >
-                  <Ionicons name="create-outline" size={16} color="#3a2929ff" />
-                  <Text style={styles.smallButtonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.smallButton, { backgroundColor: "#ff4d4d" }]}
-                  onPress={() => handleDelete(item.id)}
-                >
-                  <Ionicons name="trash-outline" size={16} color="#fff" />
-                  <Text style={styles.smallButtonText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-
+        {loading ? (
+            <View style={styles.loader}>
+                <ActivityIndicator size="large" color="#3B82F6" />
             </View>
-          )}
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
-      )}
-
-      {/* Modal for full screen letter typing */}
-      <Modal animationType="slide" visible={modalVisible}>
-        <SafeAreaView style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContainer}>
-            <Text style={styles.modalHeading}>{editingId ? "Edit Letter" : "Create Letter"}</Text>
-            <TextInput
-              style={styles.modalTitleInput}
-              placeholder="Title"
-              value={title}
-              onChangeText={setTitle}
+        ) : (
+            <FlatList
+                data={filteredLetters}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.listBody}
+                renderItem={({ item }) => (
+                    <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                        <View style={styles.cardMain}>
+                            <View style={[styles.iconBox, { backgroundColor: isDark ? '#374151' : '#F5F3FF' }]}>
+                                <MaterialCommunityIcons name="file-document-outline" size={24} color="#6366F1" />
+                            </View>
+                            <View style={styles.cardContent}>
+                                <Text style={[styles.letterTitle, { color: themeColors.text }]}>{item.title}</Text>
+                                <Text style={[styles.letterPreview, { color: themeColors.subText }]} numberOfLines={2}>{item.content}</Text>
+                                <View style={styles.metaRow}>
+                                    <View style={[styles.statusPill, { backgroundColor: item.is_shared ? (isDark ? '#065F46' : '#ECFDF5') : (isDark ? '#374151' : '#F9FAFB') }]}>
+                                        <Text style={[styles.statusText, { color: item.is_shared ? (isDark ? '#34D399' : '#10B981') : themeColors.subText }]}>
+                                            {item.is_shared ? "SHARED" : "PRIVATE"}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.ownerText, { color: themeColors.subText }]}>By {item.owner}</Text>
+                                </View>
+                            </View>
+                        </View>
+                        <View style={[styles.cardActions, { borderTopColor: themeColors.border }]}>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => {
+                                setEditingId(item.id); setTitle(item.title); setContent(item.content); setIsShared(item.is_shared); setModalVisible(true);
+                            }}>
+                                <Ionicons name="pencil-outline" size={18} color="#3B82F6" />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
+                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+                ListEmptyComponent={
+                    <View style={styles.empty}>
+                        <Ionicons name="document-text-outline" size={64} color={themeColors.border} />
+                        <Text style={[styles.emptyText, { color: themeColors.subText }]}>No documents found in this category.</Text>
+                    </View>
+                }
             />
-            <TextInput
-              style={styles.modalContentInput}
-              placeholder="Type your letter here..."
-              value={content}
-              onChangeText={setContent}
-              multiline
-            />
-            <TouchableOpacity style={styles.checkboxContainer} onPress={() => setIsShared(!isShared)}>
-              <Text style={{ fontSize: 18 }}>{isShared ? "✅" : "⬜"}</Text>
-              <Text style={{ marginLeft: 8 }}>Share with all students</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={handleSave}>
-              <Text style={styles.buttonText}>{editingId ? "Update Letter" : "Save Letter"}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: "#aaa", marginTop: 10 }]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        )}
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons name="home" size={24} color="#fff" onPress={() => handleNav("/student/dashboard")} />
-        <Ionicons name="search" size={24} color="#fff" onPress={() => handleNav("/student/search")} />
-        <Ionicons name="desktop-outline" size={24} color="#fff" onPress={() => handleNav("/student/letters")} />
-        <Ionicons name="person-circle-outline" size={24} color="#fff" onPress={() => handleNav("/student/profile")} />
-      </View>
+        {/* Modal Editor */}
+        <Modal visible={modalVisible} animationType="slide">
+            <SafeAreaView style={[styles.modalBg, { backgroundColor: themeColors.bg }]}>
+                <View style={[styles.header, { backgroundColor: themeColors.headerBg, borderBottomWidth: 1, borderBottomColor: themeColors.border }]}>
+                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.backBtn}>
+                        <Ionicons name="close" size={24} color={themeColors.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>{editingId ? "Edit Document" : "New Document"}</Text>
+                    <TouchableOpacity onPress={handleSave}>
+                        <Text style={styles.saveBtnText}>SAVE</Text>
+                    </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={styles.modalBody}>
+                    <TextInput
+                        style={[styles.titleInput, { color: themeColors.text }]}
+                        placeholder="Document Title"
+                        value={title}
+                        onChangeText={setTitle}
+                        placeholderTextColor={themeColors.subText}
+                    />
+                    <TextInput
+                        style={[styles.contentInput, { color: themeColors.text }]}
+                        placeholder="Type your content here..."
+                        value={content}
+                        onChangeText={setContent}
+                        multiline
+                        placeholderTextColor={themeColors.subText}
+                    />
+                    <TouchableOpacity style={styles.shareToggle} onPress={() => setIsShared(!isShared)}>
+                        <Ionicons name={isShared ? "checkbox" : "square-outline"} size={22} color={isShared ? "#3B82F6" : themeColors.subText} />
+                        <Text style={[styles.shareText, { color: themeColors.subText }]}>Share with institution directory</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </SafeAreaView>
+        </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, marginBottom: 10 },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#30e4de" },
-  menuBox: { backgroundColor: "#eff4f4", borderRadius: 12, paddingVertical: 10, marginBottom: 15, alignItems: "center", elevation: 5 },
-  menuBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 20, width: "80%", backgroundColor: "#30e4de", borderRadius: 8, marginVertical: 6, justifyContent: "center" },
-  menuText: { color: "#090000ff", fontSize: 16, marginLeft: 8, fontWeight: "600" },
-  heading: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  newLetterBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#30e4de", padding: 12, borderRadius: 8, marginBottom: 15, justifyContent: "center" },
-  newLetterText: { color: "#fff", marginLeft: 6, fontWeight: "bold" },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginBottom: 10, backgroundColor: "#fff" },
-  modalContainer: { flex: 1, backgroundColor: "#f2f2f2", padding: 16 },
-  scrollContainer: { flexGrow: 1 },
-  modalHeading: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
-  modalTitleInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, marginBottom: 10, backgroundColor: "#fff" },
-  modalContentInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, marginBottom: 10, height: 500, textAlignVertical: "top", backgroundColor: "#fff" },
-  checkboxContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  button: { backgroundColor: "#30e4de", padding: 12, borderRadius: 8 },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-  card: { backgroundColor: "#fff", padding: 12, borderRadius: 10, marginBottom: 10, elevation: 2 },
-  title: { fontSize: 16, fontWeight: "bold" },
-  content: { marginVertical: 5, color: "#333" },
-  meta: { fontSize: 12, color: "#666" },
-  smallButton: { flexDirection: "row", alignItems: "center", padding: 6, borderRadius: 6, marginRight: 6 },
-  smallButtonText: { color: "#fff", marginLeft: 4 },
-  filterBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: "#30e4de" },
-  empty: { textAlign: "center", marginTop: 20, fontSize: 16, color: "#333" },
-  bottomNav: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#30e4de", paddingVertical: 12, position: "absolute", bottom: 0, width: "100%" },
-});
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 15 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
 
+  filterBar: { flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginBottom: 20, paddingTop: 10 },
+  filterTab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
+  filterTabText: { fontSize: 10, fontWeight: '800' },
+
+  listBody: { paddingHorizontal: 24, paddingBottom: 100 },
+  card: { borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05 },
+  cardMain: { flexDirection: 'row' },
+  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  cardContent: { flex: 1, marginLeft: 15 },
+  letterTitle: { fontSize: 15, fontWeight: '700' },
+  letterPreview: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  statusText: { fontSize: 9, fontWeight: '800' },
+  ownerText: { fontSize: 11, fontWeight: '500' },
+
+  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 15, marginTop: 10, borderTopWidth: 1, paddingTop: 10 },
+  actionBtn: { padding: 5 },
+
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  empty: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 15, fontSize: 14 },
+
+  modalBg: { flex: 1 },
+  modalBody: { padding: 24 },
+  titleInput: { fontSize: 24, fontWeight: '800', marginBottom: 20 },
+  contentInput: { fontSize: 16, lineHeight: 24, minHeight: 400, textAlignVertical: 'top' },
+  saveBtnText: { fontWeight: '800', color: '#3B82F6', letterSpacing: 1 },
+  shareToggle: { flexDirection: 'row', alignItems: 'center', marginTop: 30, gap: 10 },
+  shareText: { fontSize: 14, fontWeight: '600' }
+});

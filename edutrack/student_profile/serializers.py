@@ -1,13 +1,10 @@
 from rest_framework import serializers
-from .models import StudentProfile
+from student_profile.models import StudentProfile
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from accounts.models import Student
 
-
-
 User = get_user_model()
-
 
 class StudentProfileSerializer(serializers.ModelSerializer):
     # fetch related user fields
@@ -20,9 +17,12 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     date_joined = serializers.DateTimeField(source="user.date_joined", read_only=True)
     role = serializers.CharField(source="user.get_role_display", read_only=True)
     last_login = serializers.DateTimeField(source="user.last_login", read_only=True)
-    # Fetch department and year from authoritative User/Student models
-    department = serializers.CharField(source="user.department.name", read_only=True, default=None)
-    year = serializers.IntegerField(source="user.student_account.year", read_only=True, default=None)
+    
+    # Fetch academic info safely
+    department = serializers.SerializerMethodField()
+    year = serializers.SerializerMethodField()
+    semester = serializers.SerializerMethodField()
+    course = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentProfile
@@ -39,6 +39,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "phone_number",
             "department",
             "year",
+            "semester",
+            "course",
             "avatar",
             "avatar_url",
         ]
@@ -51,17 +53,71 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.avatar.url)
         return None
 
+    def get_department(self, obj):
+        if obj.department:
+            return obj.department
+        
+        legacy_name = None
+        if obj.user and obj.user.department:
+            legacy_name = obj.user.department.name
+        
+        if legacy_name and " in " in legacy_name:
+            return legacy_name.split(" in ")[1]
+        return legacy_name
+
+    def get_year(self, obj):
+        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
+            return obj.user.student_account.year
+        return obj.year # fallback to studentprofile field
+
+    def get_semester(self, obj):
+        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
+            return obj.user.student_account.semester
+        return None
+
+    def get_course(self, obj):
+        if obj.course:
+            return obj.course
+
+        legacy_course = None
+        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
+            legacy_course = obj.user.student_account.course
+        
+        if legacy_course and " in " in legacy_course:
+            return legacy_course.split(" in ")[0]
+        return legacy_course
+
 
 class UpdateStudentProfileSerializer(serializers.ModelSerializer):
     """Only allow updating non-sensitive fields"""
+    first_name = serializers.CharField(source="user.first_name", required=False)
+    last_name = serializers.CharField(source="user.last_name", required=False)
+    email = serializers.EmailField(source="user.email", required=False)
+
     class Meta:
         model = StudentProfile
         fields = [
+            "first_name",
+            "last_name",
+            "email",
             "phone_number",
             "department",
+            "course",
             "year",
             "avatar",
         ]
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        user = instance.user
+        
+        # Manually update user fields if present
+        if user:
+            for attr, value in user_data.items():
+                setattr(user, attr, value)
+            user.save()
+            
+        return super().update(instance, validated_data)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -94,12 +150,13 @@ class CreateStudentSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     roll_number = serializers.CharField(required=True)
     department = serializers.CharField(required=False)
+    course = serializers.CharField(required=False)
     year = serializers.IntegerField(required=False)
     phone_number = serializers.CharField(required=False)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password", "roll_number", "department", "year", "phone_number"]
+        fields = ["username", "email", "password", "roll_number", "department", "course", "year", "phone_number"]
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -126,9 +183,8 @@ class CreateStudentSerializer(serializers.ModelSerializer):
         Student.objects.create(
             user=user,
             roll_no=roll_number,
-            course=validated_data.get("department", "General"),
+            course=validated_data.get("course", "General"),
             year=validated_data.get("year", None)
         )
 
         return user
-    

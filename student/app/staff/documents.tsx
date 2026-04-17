@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,23 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Animated,
-  Easing,
+  Modal,
+  ScrollView,
+  StatusBar,
+  Dimensions,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter, usePathname } from "expo-router";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import StaffBottomNav from "../../components/StaffBottomNav";
+import axios from "axios";
+import { useTheme } from "../../context/ThemeContext";
+
+const { width } = Dimensions.get("window");
 
 interface Document {
   id: number;
@@ -26,65 +34,43 @@ interface Document {
   subject_code: string;
   staff_name: string;
   file: string;
+  created_at?: string;
 }
 
-export default function StaffUpload() {
+export default function DocumentLibrary() {
   const router = useRouter();
-  const pathname = usePathname();
+  const { isDark, theme: themeColors } = useTheme();
 
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [subjectName, setSubjectName] = useState("");
-  const [subjectCode, setSubjectCode] = useState("");
-  const [staffName, setStaffName] = useState("");
-  const [file, setFile] = useState<any>(null);
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("ALL");
 
-  const [showForm, setShowForm] = useState(false);
-  const formHeight = useRef(new Animated.Value(0)).current;
+  // Upload State
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [title, setTitle] = useState("");
+  const [subjectName, setSubjectName] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [file, setFile] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const [openDocId, setOpenDocId] = useState<number | null>(null);
-  const dropdownHeights = useRef<{ [key: number]: Animated.Value }>({}).current;
-
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+  useEffect(() => { fetchDocuments(); }, []);
 
   const fetchDocuments = async () => {
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token) return;
+    setFetching(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/list/`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const token = await AsyncStorage.getItem("accessToken");
+      const res = await axios.get(`${API_BASE_URL}/api/accounts/documents/list/`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.status === 401) {
-        Alert.alert("Session Expired", "Please login again.");
-        await AsyncStorage.removeItem("accessToken");
-        router.replace("/login");
-        return;
-      }
-      if (!res.ok) {
-        console.error("Fetch error:", res.status, res.statusText);
-        throw new Error("Failed to fetch documents");
-      }
-      const data = await res.json();
-      const absoluteData = data.map((doc: any) => ({
+      const absoluteData = res.data.map((doc: any) => ({
         ...doc,
         file: doc.file.startsWith("http") ? doc.file : `${API_BASE_URL}${doc.file}`,
       }));
       setDocs(absoluteData);
-
-      absoluteData.forEach((doc: Document) => {
-        if (!dropdownHeights[doc.id]) dropdownHeights[doc.id] = new Animated.Value(0);
-      });
-
-      setTimeout(() => setLoading(false), 500);
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to fetch documents");
-      setLoading(false);
-    }
+    } catch (err) { }
+    finally { setLoading(false); setFetching(false); }
   };
 
   const pickFile = async () => {
@@ -93,225 +79,264 @@ export default function StaffUpload() {
   };
 
   const uploadFile = async () => {
-    if (!title || !subjectName || !subjectCode || !staffName || !file) {
-      Alert.alert("Error", "Please fill all required fields and pick a file");
-      return;
-    }
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token) return Alert.alert("Error", "Please login again");
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", desc);
-    formData.append("subject_name", subjectName);
-    formData.append("subject_code", subjectCode);
-    formData.append("staff_name", staffName);
-    formData.append("file", {
-      uri: file.uri,
-      name: file.name || "upload",
-      type: file.mimeType || "application/octet-stream",
-    } as any);
-
+    if (!title || !subjectName || !file) return Alert.alert("Missing Details", "Provide title, subject and select a file.");
+    setUploading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/upload/`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-        body: formData,
+      const token = await AsyncStorage.getItem("accessToken");
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("subject_name", subjectName);
+      formData.append("subject_code", subjectCode);
+      formData.append("file", {
+        uri: file.uri,
+        name: file.name || "document.pdf",
+        type: file.mimeType || "application/pdf",
+      } as any);
+
+      await axios.post(`${API_BASE_URL}/api/accounts/documents/upload/`, formData, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       });
-      if (res.ok) {
-        Alert.alert("Success", "Document uploaded successfully");
-        setTitle(""); setDesc(""); setSubjectName(""); setSubjectCode(""); setStaffName(""); setFile(null);
-        fetchDocuments();
-      } else {
-        const data = await res.json();
-        Alert.alert("Error", data.detail || "Upload failed");
-      }
+
+      Alert.alert("Success", "Academic asset uploaded.");
+      setUploadModalVisible(false);
+      setTitle(""); setSubjectName(""); setSubjectCode(""); setFile(null);
+      fetchDocuments();
     } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Something went wrong");
+      Alert.alert("Upload Error", "Failed to sync document.");
+    } finally { setUploading(false); }
+  };
+
+  const confirmDelete = (id: number) => {
+    Alert.alert("Purge Document", "Permanently remove this academic asset?", [
+      { text: "Cancel" },
+      { text: "Purge", style: "destructive", onPress: async () => {
+          const token = await AsyncStorage.getItem("accessToken");
+          await axios.delete(`${API_BASE_URL}/api/accounts/documents/delete/${id}/`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          fetchDocuments();
+      }}
+    ]);
+  };
+
+  const getFilteredDocs = () => {
+    let res = docs;
+    if (searchQuery) {
+        res = res.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase()) || d.subject_name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-  };
-
-  const deleteFile = async (id: number) => {
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/accounts/documents/delete/${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        Alert.alert("Deleted", "Document removed successfully");
-        fetchDocuments();
-      } else Alert.alert("Error", "Failed to delete file");
-    } catch (err) { console.error(err); }
-  };
-
-  const toggleForm = () => {
-    setShowForm(!showForm);
-    Animated.timing(formHeight, {
-      toValue: showForm ? 0 : 350,
-      duration: 300,
-      easing: Easing.ease,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const toggleDropdown = (id: number) => {
-    if (openDocId === id) {
-      Animated.timing(dropdownHeights[id], {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.ease,
-        useNativeDriver: false,
-      }).start(() => setOpenDocId(null));
-    } else {
-      if (openDocId && dropdownHeights[openDocId])
-        Animated.timing(dropdownHeights[openDocId], {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.ease,
-          useNativeDriver: false,
-        }).start();
-
-      setOpenDocId(id);
-      Animated.timing(dropdownHeights[id], {
-        toValue: 100,
-        duration: 300,
-        easing: Easing.ease,
-        useNativeDriver: false,
-      }).start();
+    if (selectedSubject !== "ALL") {
+        res = res.filter(d => d.subject_name === selectedSubject);
     }
+    return res;
   };
 
-  const handleNav = (path: string) => router.push(path as any);
+  const getFileStyle = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return { color: '#EF4444', icon: 'file-pdf' };
+    if (ext === 'doc' || ext === 'docx') return { color: '#3B82F6', icon: 'file-word' };
+    if (ext === 'xls' || ext === 'xlsx') return { color: '#10B981', icon: 'file-excel' };
+    return { color: '#6366F1', icon: 'file-alt' };
+  };
 
-  if (loading) return (
-    <View style={styles.loader}>
-      <ActivityIndicator size="large" color="#30e4de" />
-      <Text style={{ marginTop: 10 }}>Loading documents...</Text>
-    </View>
-  );
+  const subjects = ["ALL", ...Array.from(new Set(docs.map(d => d.subject_name)))];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <Ionicons name="arrow-back" size={22} color="#30e4de" onPress={() => router.back()} />
-        <Text style={styles.headerTitle}>MATERIALS</Text>
-        <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push("/staff/notifications")}>
-          <Ionicons name="notifications-outline" size={24} color="#30e4de" />
+      <View style={[styles.header, { backgroundColor: themeColors.headerBg, borderBottomColor: themeColors.border }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Study Assets</Text>
+        <TouchableOpacity style={styles.uploadTrigger} onPress={() => setUploadModalVisible(true)}>
+          <Ionicons name="cloud-upload" size={24} color="#6366F1" />
         </TouchableOpacity>
       </View>
 
-      {/* Upload Button */}
-      <View style={{ alignItems: "center", marginVertical: 10 }}>
-        <TouchableOpacity
-          style={[styles.uploadBtn, { width: "70%", justifyContent: "center" }]}
-          onPress={toggleForm}
-        >
-          <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-          <Text style={[styles.uploadText, { marginLeft: 6 }]}>Upload Materials</Text>
-        </TouchableOpacity>
+      {/* Global Filter Bar */}
+      <View style={styles.searchSection}>
+         <View style={[styles.searchBar, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Ionicons name="search" size={20} color={themeColors.subText} />
+            <TextInput 
+               style={[styles.searchInput, { color: themeColors.text }]}
+               placeholder="Search by title or subject..."
+               placeholderTextColor={themeColors.subText}
+               value={searchQuery}
+               onChangeText={setSearchQuery}
+            />
+         </View>
       </View>
 
-      {/* Animated Form */}
-      <Animated.View style={[styles.form, { height: formHeight, overflow: "hidden" }]}>
-        <TextInput placeholder="Title *" value={title} onChangeText={setTitle} style={styles.input} />
-        <TextInput placeholder="Description" value={desc} onChangeText={setDesc} style={styles.input} />
-        <TextInput placeholder="Subject Name *" value={subjectName} onChangeText={setSubjectName} style={styles.input} />
-        <TextInput placeholder="Subject Code *" value={subjectCode} onChangeText={setSubjectCode} style={styles.input} />
-        <TextInput placeholder="Staff Name *" value={staffName} onChangeText={setStaffName} style={styles.input} />
-        <TouchableOpacity style={styles.uploadBtn} onPress={pickFile}>
-          <Ionicons name="document-outline" size={18} color="#fff" />
-          <Text style={styles.uploadText}>{file ? file.name : "Pick File"}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: "#28a745" }]} onPress={uploadFile}>
-          <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-          <Text style={styles.uploadText}>Upload</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {/* Subject Selector */}
+      <View style={styles.subjectRow}>
+         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectScroll}>
+            {subjects.map(s => (
+              <TouchableOpacity 
+                 key={s} 
+                 style={[styles.subjectChip, { backgroundColor: themeColors.card, borderColor: themeColors.border }, selectedSubject === s && styles.activeChip]}
+                 onPress={() => setSelectedSubject(s)}
+              >
+                 <Text style={[styles.subjectText, { color: themeColors.text }, selectedSubject === s && { color: '#fff' }]}>{s.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+         </ScrollView>
+      </View>
 
-      {/* Documents List */}
       <FlatList
-        contentContainerStyle={{ paddingBottom: 120 }}
-        data={docs}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {/* Tap title to view document */}
-            <TouchableOpacity onPress={() => handleNav(`/staff/document/${item.id}`)}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-            </TouchableOpacity>
-            <Text>{item.description}</Text>
-            <Text>📘 {item.subject_name} ({item.subject_code})</Text>
-            <Text>👨‍🏫 {item.staff_name}</Text>
-
-            {/* Delete Button */}
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() =>
-                Alert.alert(
-                  "Confirm Delete",
-                  "Are you sure you want to delete this document?",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteFile(item.id) },
-                  ]
-                )
-              }
-            >
-              <Ionicons name="trash-outline" size={18} color="#fff" />
-              <Text style={styles.deleteText}>Delete</Text>
-            </TouchableOpacity>
+        data={getFilteredDocs()}
+        keyExtractor={item => item.id.toString()}
+        contentContainerStyle={styles.listBody}
+        refreshControl={<RefreshControl refreshing={fetching} onRefresh={fetchDocuments} colors={["#6366F1"]} />}
+        ListHeaderComponent={<Text style={[styles.sectionTitle, { color: themeColors.subText }]}>RECENTLY ADDED ASSETS</Text>}
+        renderItem={({ item }) => {
+          const style = getFileStyle(item.file);
+          return (
+            <View style={[styles.docCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+              <View style={[styles.docIconBox, { backgroundColor: `${style.color}15` }]}>
+                 <FontAwesome5 name={style.icon} size={24} color={style.color} />
+              </View>
+              <View style={styles.docInfo}>
+                 <Text style={[styles.docTitle, { color: themeColors.text }]} numberOfLines={1}>{item.title}</Text>
+                 <Text style={styles.docMeta}>{item.subject_name} • {item.subject_code}</Text>
+              </View>
+              <View style={styles.docActions}>
+                 <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.docDelete}>
+                    <Ionicons name="trash" size={18} color="#EF4444" />
+                 </TouchableOpacity>
+                 <TouchableOpacity onPress={() => router.push(`/staff/document_viewer?url=${encodeURIComponent(item.file)}&title=${encodeURIComponent(item.title)}` as any)} style={styles.docOpen}>
+                    <Ionicons name="eye" size={18} color="#6366F1" />
+                 </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyShell}>
+             <Ionicons name="document-text-outline" size={60} color={themeColors.border} />
+             <Text style={[styles.emptyText, { color: themeColors.subText }]}>No documents found matching your criteria.</Text>
           </View>
-        )}
+        }
       />
 
+      {/* Upload Modal */}
+      <Modal visible={uploadModalVisible} animationType="slide">
+        <SafeAreaView style={[styles.modalArea, { backgroundColor: themeColors.bg }]}>
+           <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
+              <Text style={[styles.modalTitle, { color: themeColors.text }]}>Publish Study Asset</Text>
+              <TouchableOpacity onPress={() => setUploadModalVisible(false)} style={styles.closeModal}>
+                 <Ionicons name="close" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+           </View>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons name="home" size={24} color={pathname === "/staff/dashboard" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/staff/dashboard")} />
-        <Ionicons name="search" size={24} color={pathname === "/staff/search" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/staff/search")} />
-        <Ionicons name="desktop-outline" size={24} color={pathname === "/staff/notice" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/staff/notice")} />
-        <Ionicons name="person-circle-outline" size={24} color={pathname === "/staff/profile" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/staff/profile")} />
-      </View>
+           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>DOCUMENT TITLE</Text>
+              <TextInput 
+                 style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }]}
+                 placeholder="e.g. Unit 3: Thermodynamics Notes"
+                 placeholderTextColor={themeColors.subText}
+                 value={title}
+                 onChangeText={setTitle}
+              />
+
+              <View style={styles.inputRow}>
+                 <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>SUBJECT NAME</Text>
+                    <TextInput 
+                       style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }]}
+                       placeholder="e.g. Physics"
+                       placeholderTextColor={themeColors.subText}
+                       value={subjectName}
+                       onChangeText={setSubjectName}
+                    />
+                 </View>
+                 <View style={{ width: 15 }} />
+                 <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>CODE</Text>
+                    <TextInput 
+                       style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }]}
+                       placeholder="PH101"
+                       placeholderTextColor={themeColors.subText}
+                       value={subjectCode}
+                       onChangeText={setSubjectCode}
+                    />
+                 </View>
+              </View>
+
+              <TouchableOpacity style={[styles.filePicker, { backgroundColor: themeColors.card, borderColor: themeColors.border }]} onPress={pickFile}>
+                 <View style={[styles.pickerIcon, { backgroundColor: file ? '#10B98115' : '#6366F115' }]}>
+                    <Ionicons name={file ? "checkmark-circle" : "document-attach"} size={28} color={file ? "#10B981" : "#6366F1"} />
+                 </View>
+                 <View style={styles.pickerInfo}>
+                    <Text style={[styles.pickerTitle, { color: themeColors.text }]}>{file ? file.name : "Select Document File"}</Text>
+                    <Text style={styles.pickerMeta}>{file ? `${(file.size!/1024).toFixed(1)} KB` : "Supports PDF, DOC, XLS (MAX 50MB)"}</Text>
+                 </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                 style={[styles.publishBtn, (!file || !title) && { opacity: 0.5 }]} 
+                 disabled={!file || !title || uploading}
+                 onPress={uploadFile}
+              >
+                 {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.publishBtnText}>PUBLISH TO STUDENTS</Text>}
+              </TouchableOpacity>
+           </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <StaffBottomNav />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, marginBottom: 10 },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#30e4de", alignItems: "center" },
-  form: { paddingHorizontal: 16 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginVertical: 6 },
-  uploadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#30e4de", paddingVertical: 10, borderRadius: 8, marginVertical: 6 },
-  uploadText: { color: "#fff", fontSize: 16, marginLeft: 6, fontWeight: "600" },
-  card: { padding: 12, marginVertical: 8, borderRadius: 10, backgroundColor: "#fff", elevation: 3 },
-  cardTitle: { fontWeight: "bold", fontSize: 16, marginBottom: 4 },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  bottomNav: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#30e4de", paddingVertical: 12, position: "absolute", bottom: 0, width: "100%" },
-  dropdown: { overflow: "hidden", backgroundColor: "#30e4de", borderRadius: 6, marginTop: 6 },
-  menuItem: { flexDirection: "row", alignItems: "center", padding: 5, paddingHorizontal: 10 },
-  menuText: { color: "#fff", marginLeft: 6 },
-  notificationBtn: { position: "relative" },
-  badge: { position: "absolute", top: -4, right: -4, backgroundColor: "#dc3545", borderRadius: 8, minWidth: 16, height: 16, justifyContent: "center", alignItems: "center", paddingHorizontal: 2 },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  deleteBtn: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#dc3545",
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 10,
+  container: { flex: 1 },
+  header: { 
+     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+     paddingHorizontal: 20, paddingTop: 40, paddingBottom: 15, borderBottomWidth: 1
   },
-  deleteText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
+  uploadTrigger: { padding: 4 },
 
+  searchSection: { padding: 20 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 52, borderRadius: 16, borderWidth: 1 },
+  searchInput: { flex: 1, marginLeft: 12, fontSize: 14, fontWeight: '600' },
+
+  subjectRow: { marginBottom: 20 },
+  subjectScroll: { paddingHorizontal: 20, gap: 10 },
+  subjectChip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  activeChip: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  subjectText: { fontSize: 11, fontWeight: '800' },
+
+  listBody: { paddingHorizontal: 20, paddingBottom: 120 },
+  sectionTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 15 },
+  docCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 24, borderWidth: 1, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03 },
+  docIconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  docInfo: { flex: 1, marginLeft: 15 },
+  docTitle: { fontSize: 15, fontWeight: '800' },
+  docMeta: { fontSize: 10, color: '#9CA3AF', fontWeight: '700', marginTop: 4, letterSpacing: 0.5 },
+  docActions: { flexDirection: 'row', gap: 10 },
+  docDelete: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#EF444410', justifyContent: 'center', alignItems: 'center' },
+  docOpen: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#6366F110', justifyContent: 'center', alignItems: 'center' },
+
+  emptyShell: { alignItems: 'center', marginTop: 80 },
+  emptyText: { fontSize: 13, fontWeight: '600', marginTop: 15, textAlign: 'center', marginHorizontal: 40 },
+
+  modalArea: { flex: 1 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 18, fontWeight: '800' },
+  closeModal: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center' },
+  modalBody: { padding: 25 },
+  inputLabel: { fontSize: 10, fontWeight: '900', color: '#9CA3AF', marginBottom: 10, letterSpacing: 1 },
+  input: { padding: 18, borderRadius: 16, borderWidth: 1, fontSize: 15, fontWeight: '600', marginBottom: 20 },
+  inputRow: { flexDirection: 'row' },
+  filePicker: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, borderWidth: 1, marginTop: 10, marginBottom: 30 },
+  pickerIcon: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  pickerInfo: { flex: 1 },
+  pickerTitle: { fontSize: 15, fontWeight: '800' },
+  pickerMeta: { fontSize: 11, color: '#9CA3AF', fontWeight: '700', marginTop: 2 },
+  publishBtn: { backgroundColor: '#6366F1', height: 62, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  publishBtnText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 1 },
 });

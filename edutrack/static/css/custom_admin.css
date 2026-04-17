@@ -1,38 +1,139 @@
-/* Center the login page content */
+/* Modern Indigo Design System - EduTrack */
+:root {
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --bg-light: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    background-color: var(--bg-light) !important;
+}
+
+/* Sidebar Modernization */
+.main-sidebar {
+    background-color: #0f172a !important; /* Deep dark slate */
+    border-right: 1px solid var(--border) !important;
+}
+
+.nav-sidebar .nav-link {
+    border-radius: 12px !important;
+    margin: 4px 8px !important;
+    padding: 10px 15px !important;
+    font-weight: 500 !important;
+}
+
+.nav-sidebar .nav-link.active {
+    background-color: var(--primary) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Card & Container Styling */
+.card {
+    border-radius: 24px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+    overflow: hidden !important;
+}
+
+.card-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 20px !important;
+}
+
+.card-title {
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+    color: #1e293b !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    border-radius: 12px !important;
+    padding: 10px 20px !important;
+    font-weight: 700 !important;
+    transition: all 0.2s !important;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Table Modernization */
+.table {
+    border-radius: 16px !important;
+}
+
+.table thead th {
+    background-color: #f1f5f9 !important;
+    border-bottom: 2px solid var(--border) !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Login Page Redesign */
 body.login-page {
+    background: #0f172a !important;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    background: #f4f6f9; /* Standard lightweight background, can be customized */
 }
 
-/* Ensure the login box is centered and has a nice shadow/width */
-.login-box, .register-box {
-    width: 400px;
-    margin: 0 auto;
+.login-box {
+    width: 440px !important;
 }
 
-/* Center the logo specifically */
-.login-logo {
-    text-align: center !important;
-    margin-bottom: 20px !important;
-    font-size: 2.1rem;
-    font-weight: 300;
-    display: flex;
-    justify-content: center;
-    width: 100%;
+.login-box .card {
+    border-radius: 40px !important;
+    padding: 20px !important;
 }
 
-.login-logo a {
-    display: block;
-    width: 100%;
+.login-logo b {
+    color: #fff !important;
+    font-weight: 900 !important;
 }
 
-.login-logo img {
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    max-width: 150px; /* Adjust size as needed to look proportional */
-    height: auto;
+/* Mobile Responsiveness & Alignment */
+@media (max-width: 768px) {
+    .content-wrapper {
+        padding: 15px !important;
+    }
+    
+    .card {
+        border-radius: 32px !important; /* Even rounder on mobile for that app feel */
+    }
+    
+    .btn {
+        width: 100% !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .row {
+        margin: 0 !important;
+    }
+}
+
+/* Custom Scrollbar - Fluid */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }

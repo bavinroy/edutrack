@@ -22,6 +22,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import { API_BASE_URL } from "../config";
+import StaffBottomNav from "../../components/StaffBottomNav";
 
 const { width } = Dimensions.get("window");
 
@@ -258,7 +259,7 @@ export default function StaffTimetableEditor() {
   };
 
   const removeCourse = (id: string) => {
-    Alert.alert("Delete Course", "Are you sure?", [
+    Alert.alert("Delete Subject", "Are you sure you want to delete this subject?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: () => setCourses(courses.filter((c) => c.id !== id)) }
     ]);
@@ -383,65 +384,52 @@ export default function StaffTimetableEditor() {
 
   const renderHeader = () => (
     <View style={styles.headerCard}>
-      {/* College Name Editable */}
-      <TextInput
-        style={[styles.collegeName, { borderBottomWidth: 1, borderColor: 'transparent' }]}
-        value={collegeName}
-        onChangeText={setCollegeName}
-        multiline
-      />
-
-      {/* Department Subtitle Editable */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 4 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>Department of </Text>
+      <View style={styles.headerInfo}>
         <TextInput
-          style={{ fontSize: 14, fontWeight: "600", color: "#333", borderBottomWidth: 1, borderColor: '#ccc', minWidth: 100, textAlign: 'center' }}
-          value={metadata.department}
-          onChangeText={(v) => handleMetadataChange("department", v)}
+          style={styles.collegeName}
+          value={collegeName}
+          onChangeText={setCollegeName}
+          multiline
+        />
+        <View style={styles.deptRow}>
+          <Text style={styles.deptLabelStatic}>Dept of </Text>
+          <TextInput
+            style={styles.deptInput}
+            value={metadata.department}
+            onChangeText={(v) => handleMetadataChange("department", v)}
+          />
+        </View>
+        <TextInput
+          style={styles.docTitleMain}
+          value={docTitle}
+          onChangeText={setDocTitle}
         />
       </View>
 
-      {/* Doc Title Editable */}
-      <TextInput
-        style={[styles.docTitle, { borderBottomWidth: 1, borderColor: 'transparent' }]}
-        value={docTitle}
-        onChangeText={setDocTitle}
-      />
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaField}>
-          <Text style={styles.metaLabel}>Academic Year</Text>
-          <TextInput style={styles.metaInput} value={metadata.academicYear} onChangeText={(v) => handleMetadataChange("academicYear", v)} />
+      <View style={styles.metaGrid}>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabelAlt}>Academic Year</Text>
+          <TextInput style={styles.metaInputAlt} value={metadata.academicYear} onChangeText={(v) => handleMetadataChange("academicYear", v)} />
         </View>
-        <View style={styles.metaField}>
-          <Text style={styles.metaLabel}>Year / Sem</Text>
-          <View style={{ flexDirection: 'row' }}>
-            <TextInput style={[styles.metaInput, { width: 40 }]} value={metadata.year} onChangeText={(v) => handleMetadataChange("year", v)} />
-            <Text style={{ alignSelf: 'center', marginHorizontal: 5 }}>/</Text>
-            <TextInput style={[styles.metaInput, { width: 40 }]} value={metadata.semester} onChangeText={(v) => handleMetadataChange("semester", v)} />
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabelAlt}>Year / Sem</Text>
+          <View style={styles.semGroup}>
+            <TextInput style={styles.semInput} value={metadata.year} onChangeText={(v) => handleMetadataChange("year", v)} placeholder="Y" />
+            <Text style={styles.semSep}>/</Text>
+            <TextInput style={styles.semInput} value={metadata.semester} onChangeText={(v) => handleMetadataChange("semester", v)} placeholder="S" />
           </View>
         </View>
-      </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaField}>
-          <Text style={styles.metaLabel}>Degree / Branch</Text>
-          <View style={{ flexDirection: 'row', flex: 1 }}>
-            <TextInput style={[styles.metaInput, { flex: 0.3 }]} value={metadata.degree} onChangeText={(v) => handleMetadataChange("degree", v)} />
-            <Text style={{ alignSelf: 'center', marginHorizontal: 5 }}>-</Text>
-            <TextInput style={[styles.metaInput, { flex: 1 }]} value={metadata.department} onChangeText={(v) => handleMetadataChange("department", v)} />
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabelAlt}>Degree</Text>
+          <TextInput style={styles.metaInputAlt} value={metadata.degree} onChangeText={(v) => handleMetadataChange("degree", v)} />
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabelAlt}>Section / Room</Text>
+          <View style={styles.semGroup}>
+            <TextInput style={styles.semInput} value={metadata.section} onChangeText={(v) => handleMetadataChange("section", v)} placeholder="Sec" />
+            <Text style={styles.semSep}>-</Text>
+            <TextInput style={styles.semInput} value={metadata.roomNo} onChangeText={(v) => handleMetadataChange("roomNo", v)} placeholder="Room" />
           </View>
-        </View>
-      </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaField}>
-          <Text style={styles.metaLabel}>Section</Text>
-          <TextInput style={styles.metaInput} value={metadata.section} onChangeText={(v) => handleMetadataChange("section", v)} />
-        </View>
-        <View style={styles.metaField}>
-          <Text style={styles.metaLabel}>Room No</Text>
-          <TextInput style={styles.metaInput} value={metadata.roomNo} onChangeText={(v) => handleMetadataChange("roomNo", v)} />
         </View>
       </View>
     </View>
@@ -534,60 +522,72 @@ export default function StaffTimetableEditor() {
   );
 
   const renderAllocationTable = () => (
-    <View style={styles.allocationContainer}>
-      <Text style={styles.sectionTitle}>COURSE - ALLOCATION</Text>
-      <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
-        <View>
-          <View style={styles.allocHeader}>
-            <Text style={[styles.allocHeadColl, { width: 40 }]}>S.No</Text>
-            <Text style={[styles.allocHeadColl, { width: 80 }]}>Code</Text>
-            <Text style={[styles.allocHeadColl, { width: 80 }]}>Acronym</Text>
-            <Text style={[styles.allocHeadColl, { width: 150 }]}>Course Name</Text>
-            <Text style={[styles.allocHeadColl, { flex: 1 }]}>Faculty Name & Dept</Text>
-            <Text style={[styles.allocHeadColl, { width: 60 }]}>Hrs/Wk</Text>
-            <Text style={[styles.allocHeadColl, { width: 60 }]}>Used</Text>
-            <Text style={[styles.allocHeadColl, { width: 40 }]}>Del</Text>
-          </View>
+    <View style={styles.assignmentWrapper}>
+      <View style={styles.assHeader}>
+        <Text style={styles.assTitle}>SUBJECT ASSIGNMENTS</Text>
+        <TouchableOpacity style={styles.assAddBtn} onPress={addCourse}>
+          <Ionicons name="add-circle" size={20} color="#fff" />
+          <Text style={styles.assAddTxt}>ADD SUBJECT</Text>
+        </TouchableOpacity>
+      </View>
 
-          {courses.map((c, idx) => {
-            const used = getUsedCounts[c.acronym] || 0;
-            const required = parseInt(c.periodsPerWeek) || 0;
-            const isOver = used > required;
-            const isUnder = used < required && required > 0;
+      {courses.map((c, idx) => {
+        const used = getUsedCounts[c.acronym] || 0;
+        const required = parseInt(c.periodsPerWeek) || 0;
+        const isWarning = used !== required && required > 0;
 
-            return (
-              <View key={c.id} style={styles.allocRow}>
-                <Text style={[styles.allocCell, { width: 40, textAlign: 'center' }]}>{idx + 1}</Text>
-                <TextInput style={[styles.allocInput, { width: 80 }]} value={c.code} onChangeText={v => handleCourseChange(c.id, 'code', v)} />
-                <TextInput style={[styles.allocInput, { width: 80, fontWeight: 'bold' }]} value={c.acronym} onChangeText={v => handleCourseChange(c.id, 'acronym', v)} />
-                <TextInput style={[styles.allocInput, { width: 150 }]} value={c.name} onChangeText={v => handleCourseChange(c.id, 'name', v)} multiline />
-                <TextInput style={[styles.allocInput, { flex: 1 }]} value={c.faculty} onChangeText={v => handleCourseChange(c.id, 'faculty', v)} multiline />
-                <TextInput
-                  style={[styles.allocInput, { width: 60, textAlign: 'center' }]}
-                  value={c.periodsPerWeek}
-                  keyboardType="numeric"
-                  onChangeText={v => handleCourseChange(c.id, 'periodsPerWeek', v)}
-                />
-                <Text style={[styles.allocCell, { width: 60, textAlign: 'center', color: isOver ? 'red' : isUnder ? '#ff9800' : 'green', fontWeight: 'bold' }]}>
-                  {used}
-                </Text>
-                <TouchableOpacity style={{ width: 40, alignItems: 'center', justifyContent: 'center' }} onPress={() => removeCourse(c.id)}>
-                  <Ionicons name="trash-outline" size={16} color="red" />
-                </TouchableOpacity>
+        return (
+          <View key={c.id} style={styles.courseCard}>
+            <View style={styles.cardTop}>
+              <View style={styles.cardBadge}><Text style={styles.badgeTxt}>{idx + 1}</Text></View>
+              <TextInput
+                style={styles.courseTitleInp}
+                placeholder="Subject Name..."
+                value={c.name}
+                onChangeText={v => handleCourseChange(c.id, 'name', v)}
+              />
+              <TouchableOpacity onPress={() => removeCourse(c.id)}>
+                <Ionicons name="trash" size={20} color="#ff4d4d" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardGrid}>
+              <View style={styles.cardItem}>
+                <Text style={styles.cardLabel}>CODE</Text>
+                <TextInput style={styles.cardInp} value={c.code} onChangeText={v => handleCourseChange(c.id, 'code', v)} />
               </View>
-            );
-          })}
-
-          <TouchableOpacity style={styles.addCourseBtn} onPress={addCourse}>
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>+ Add Course / Activity</Text>
-          </TouchableOpacity>
-
-          <View style={styles.totalRow}>
-            <Text style={{ fontWeight: 'bold', flex: 1, textAlign: 'right', paddingRight: 10 }}>Total Periods Allocated:</Text>
-            <Text style={{ fontWeight: 'bold', width: 60, textAlign: 'center' }}>{totalAllocated}</Text>
+              <View style={styles.cardItem}>
+                <Text style={styles.cardLabel}>ACRONYM</Text>
+                <TextInput style={styles.cardInp} value={c.acronym} onChangeText={v => handleCourseChange(c.id, 'acronym', v)} />
+              </View>
+              <View style={styles.cardItem}>
+                <Text style={styles.cardLabel}>HRS / WK</Text>
+                <TextInput style={styles.cardInp} value={c.periodsPerWeek} keyboardType="numeric" onChangeText={v => handleCourseChange(c.id, 'periodsPerWeek', v)} />
+              </View>
+              <View style={[styles.cardItem, { alignItems: 'center' }]}>
+                <Text style={styles.cardLabel}>USED</Text>
+                <Text style={[styles.usedVal, isWarning && { color: '#f39c12' }]}>{used} / {required || '?'}</Text>
+              </View>
+            </View>
+            <View style={styles.facultyRow}>
+              <Ionicons name="person" size={14} color="#666" />
+              <TextInput
+                style={styles.facultyInp}
+                placeholder="Staff Name & Department..."
+                value={c.faculty}
+                onChangeText={v => handleCourseChange(c.id, 'faculty', v)}
+              />
+            </View>
           </View>
+        );
+      })}
+
+      <View style={styles.totalFooter}>
+        <Text style={styles.totalLab}>Total Assigned Periods</Text>
+        <View style={styles.totalCircle}>
+          <Text style={styles.totalNum}>{totalAllocated}</Text>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 
@@ -604,9 +604,10 @@ export default function StaffTimetableEditor() {
     <View style={{ flex: 1, backgroundColor: '#f5f5f5', padding: 10 }}>
       <FlatList
         data={savedTimetables}
+        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchSavedTimetables} />}
         keyExtractor={item => item.id.toString()}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>No saved timetables found.</Text>}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>No timetables found in your records.</Text>}
         renderItem={({ item }) => (
           <View style={{ backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10, elevation: 2 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -651,7 +652,7 @@ export default function StaffTimetableEditor() {
 
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => router.back()}><Ionicons name="arrow-back" size={24} color="#333" /></TouchableOpacity>
-        <Text style={styles.navTitle}>{viewMode === 'list' ? "My Timetables" : "Editor"}</Text>
+        <Text style={styles.navTitle}>{viewMode === 'list' ? "Saved Timetables" : "Edit Timetable"}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => setViewMode(viewMode === 'list' ? 'editor' : 'list')} style={{ marginRight: 15 }}>
             <Ionicons name={viewMode === 'list' ? "create-outline" : "list-outline"} size={24} color="#00796b" />
@@ -684,7 +685,7 @@ export default function StaffTimetableEditor() {
       <Modal transparent visible={modalVisible} animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeader}>Select Course / Activity</Text>
+            <Text style={styles.modalHeader}>Select Subject / Activity</Text>
             <ScrollView>
               <TouchableOpacity style={styles.modalItem} onPress={() => selectCourseForCell("")}>
                 <Text style={[styles.modalItemText, { color: 'red' }]}>Clear Cell</Text>
@@ -702,6 +703,7 @@ export default function StaffTimetableEditor() {
         </TouchableOpacity>
       </Modal>
 
+      <StaffBottomNav />
     </SafeAreaView>
   );
 }
@@ -711,54 +713,68 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f5f5f5" },
   navHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#ddd' },
   navTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
-  scrollContent: { padding: 10, paddingBottom: 50 },
+  scrollContent: { padding: 10, paddingBottom: 100 },
 
-  // Header Card
-  headerCard: { backgroundColor: "#fff", padding: 15, borderRadius: 8, marginBottom: 15, elevation: 2 },
-  collegeName: { fontSize: 18, fontWeight: "bold", textAlign: "center", color: "#d32f2f", textTransform: 'uppercase' },
-  headerSubtitle: { fontSize: 14, fontWeight: "600", textAlign: "center", marginTop: 4, color: "#333" },
-  docTitle: { fontSize: 16, fontWeight: "bold", textAlign: "center", textDecorationLine: "underline", marginVertical: 10, color: "#000" },
+  // Header UI
+  headerCard: { backgroundColor: "#fff", padding: 20, borderRadius: 15, marginBottom: 15, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  headerInfo: { alignItems: 'center', marginBottom: 20 },
+  collegeName: { fontSize: 20, fontWeight: "900", textAlign: "center", color: "#d32f2f", letterSpacing: 1 },
+  deptRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  deptLabelStatic: { fontSize: 13, color: '#666', fontWeight: 'bold' },
+  deptInput: { fontSize: 14, fontWeight: "800", color: "#333", borderBottomWidth: 1, borderColor: '#ddd', minWidth: 120, textAlign: 'center' },
+  docTitleMain: { fontSize: 16, fontWeight: "bold", textAlign: "center", marginTop: 10, color: "#000", letterSpacing: 2 },
 
-  metaRow: { flexDirection: 'row', marginBottom: 8, justifyContent: 'space-between' },
-  metaField: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
-  metaLabel: { fontSize: 12, fontWeight: 'bold', marginRight: 5, color: '#555' },
-  metaInput: { borderBottomWidth: 1, borderColor: '#999', paddingVertical: 0, paddingHorizontal: 5, fontSize: 13, color: '#000', minWidth: 50, fontWeight: '600' },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  metaItem: { width: '48%', marginBottom: 15 },
+  metaLabelAlt: { fontSize: 10, fontWeight: '900', color: '#888', marginBottom: 4, textTransform: 'uppercase' },
+  metaInputAlt: { backgroundColor: '#f8f9fa', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: '700', color: '#333' },
+  semGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', borderRadius: 8, paddingHorizontal: 10 },
+  semInput: { flex: 1, paddingVertical: 10, fontSize: 13, fontWeight: '700', color: '#333', textAlign: 'center' },
+  semSep: { marginHorizontal: 5, color: '#ccc' },
 
-  // Grid
+  // Assignment List
+  assignmentWrapper: { backgroundColor: '#fff', borderRadius: 15, padding: 15, marginTop: 10, elevation: 3 },
+  assHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  assTitle: { fontSize: 14, fontWeight: '900', color: '#333', letterSpacing: 0.5 },
+  assAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#00796b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  assAddTxt: { color: '#fff', fontSize: 11, fontWeight: 'bold', marginLeft: 5 },
+
+  courseCard: { backgroundColor: '#fcfcfc', borderRadius: 12, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: '#eee' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  cardBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  badgeTxt: { fontSize: 11, fontWeight: 'bold', color: '#666' },
+  courseTitleInp: { flex: 1, fontSize: 15, fontWeight: '800', color: '#333' },
+
+  cardGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  cardItem: { flex: 1, marginRight: 8 },
+  cardLabel: { fontSize: 9, fontWeight: '900', color: '#999', marginBottom: 4 },
+  cardInp: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', borderRadius: 6, padding: 8, fontSize: 12, fontWeight: 'bold' },
+  usedVal: { fontSize: 14, fontWeight: '900', color: '#00796b', marginTop: 5 },
+
+  facultyRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 8, borderRadius: 8 },
+  facultyInp: { flex: 1, marginLeft: 8, fontSize: 12, color: '#555', fontWeight: '500' },
+
+  totalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#00796b', padding: 15, borderRadius: 12, marginTop: 10 },
+  totalLab: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+  totalCircle: { backgroundColor: '#fff', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  totalNum: { color: '#00796b', fontWeight: '900', fontSize: 16 },
+
+  // Grid (Remaining legacy styles adjusted)
   gridContainer: { borderWidth: 1, borderColor: '#000', backgroundColor: '#fff', marginBottom: 20 },
   gridRow: { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#000', minHeight: 40 },
   cell: { borderRightWidth: 1, borderColor: '#000', justifyContent: 'center', alignItems: 'center', padding: 2 },
-
   dayHeaderCell: { width: 60, backgroundColor: '#eceff1' },
   gridHeaderText: { fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-
-  periodHeaderCell: { width: 140, backgroundColor: '#eceff1' }, // Increased from 80
+  periodHeaderCell: { width: 140, backgroundColor: '#eceff1' },
   periodNumber: { fontSize: 12, fontWeight: 'bold' },
   periodTime: { fontSize: 9, textAlign: 'center', marginTop: 2 },
-
   dayCell: { width: 60, backgroundColor: '#eceff1' },
   dayText: { fontWeight: 'bold', fontSize: 12 },
-
-  contentCell: { width: 140, backgroundColor: '#fff' }, // Increased from 80
+  contentCell: { width: 140, backgroundColor: '#fff' },
   cellContentText: { fontWeight: 'bold', fontSize: 13, textAlign: 'center', flexWrap: 'wrap', flexShrink: 1 },
-
   breakCol: { width: 30, backgroundColor: '#e0e0e0', padding: 0 },
   verticalTextContainer: { transform: [{ rotate: '-90deg' }], width: 100, alignItems: 'center', justifyContent: 'center' },
   verticalText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 2, color: '#555' },
-
-  // Allocation
-  allocationContainer: { backgroundColor: "#fff", padding: 10, borderRadius: 8, elevation: 2 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', textDecorationLine: 'underline', marginBottom: 10, textAlign: 'center' },
-
-  allocHeader: { flexDirection: 'row', backgroundColor: '#eceff1', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#ccc', paddingVertical: 8 },
-  allocHeadColl: { fontSize: 11, fontWeight: 'bold', textAlign: 'center', marginHorizontal: 2 },
-
-  allocRow: { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#eee', paddingVertical: 5, alignItems: 'center' },
-  allocCell: { fontSize: 12 },
-  allocInput: { fontSize: 12, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, padding: 4, marginHorizontal: 2, color: '#000' },
-
-  addCourseBtn: { backgroundColor: '#00796b', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 },
-  totalRow: { flexDirection: 'row', marginTop: 10, padding: 10, backgroundColor: '#e0f2f1', borderRadius: 4 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: 'center', alignItems: 'center' },

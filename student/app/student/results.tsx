@@ -3,178 +3,104 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function StudentResult() {
   const router = useRouter();
+  const { isDark, theme: themeColors } = useTheme();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ⏳ simulate small loading delay
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 1500);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleNav = (path: string) => {
-    router.push(path as any);
-  };
-
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#30e4de" />
-        <Text style={styles.loaderText}>Loading...</Text>
+      <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/back.jpg")}
-      style={styles.background}
-      resizeMode="cover"
-    >
-      {/* 🔹 Header */}
-      <View style={styles.header}>
-        <Ionicons
-          name="arrow-back"
-          size={24}
-          color="#00B9BD"
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>RESULTS</Text>
-        <View style={styles.headerIcons}>
-          <Ionicons
-            name="notifications-outline"
-            size={22}
-            color="orange"
-            style={styles.icon}
-          />
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={22}
-            color="orange"
-            style={styles.icon}
-          />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: themeColors.headerBg }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Academic Results</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+        <View style={styles.welcomeCard}>
+          <Text style={styles.cardSubtitle}>Semester Performance</Text>
+          <Text style={styles.cardTitle}>Results Center</Text>
         </View>
-      </View>
 
-      {/* 🔹 Coming Soon Content */}
-      <View style={styles.centerContent}>
-        <Ionicons name="time-outline" size={70} color="#30e4de" />
-        <Text style={styles.comingText}>Coming Soon...</Text>
-        <Text style={styles.subText}>
-          Stay tuned! Result section will be available soon.
-        </Text>
-      </View>
+        <View style={[styles.comingSoonCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View style={[styles.iconBox, { backgroundColor: '#F59E0B15' }]}>
+            <Ionicons name="time-outline" size={48} color="#F59E0B" />
+          </View>
+          <Text style={[styles.comingTitle, { color: themeColors.text }]}>Results Pending</Text>
+          <Text style={[styles.comingText, { color: themeColors.subText }]}>
+            Official semester results are currently being processed by the controller of examinations.
+          </Text>
 
-      {/* 🔹 Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons
-          name="home"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/student/dashboard")}
-        />
-        <Ionicons
-          name="search"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/student/search")}
-        />
-        <Ionicons
-          name="desktop-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/student/notice")}
-        />
-        <Ionicons
-          name="download-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/student/downloads")}
-        />
-        <Ionicons
-          name="person-circle-outline"
-          size={24}
-          color="#fff"
-          onPress={() => handleNav("/student/profile")}
-        />
-      </View>
-    </ImageBackground>
+        </View>
+
+        <View style={[styles.tipCard, { backgroundColor: isDark ? '#1E2937' : '#EFF6FF' }]}>
+          <Ionicons name="bulb-outline" size={18} color="#3B82F6" />
+          <Text style={styles.tipText}>You will receive a notification the moment results are published.</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // 🔹 Loader
-  loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  loaderText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#30e4de",
-    fontWeight: "600",
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 15 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
 
-  // 🔹 Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    marginBottom: 10,
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#00B9BD",
-  },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    marginLeft: 15,
-  },
+  scrollBody: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 10 },
 
-  // 🔹 Content
-  centerContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 10,
+  welcomeCard: {
+    backgroundColor: '#6366F1',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10,
   },
-  comingText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#30e4de",
-    marginTop: 10,
-  },
-  subText: {
-    fontSize: 16,
-    color: "#555",
-    textAlign: "center",
-    marginHorizontal: 30,
-  },
+  cardSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '500' },
+  cardTitle: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginTop: 5 },
 
-  // 🔹 Bottom Navigation
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#30e4de",
-    paddingVertical: 12,
-  },
+  comingSoonCard: { borderRadius: 24, padding: 30, alignItems: 'center', borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05 },
+  iconBox: { width: 80, height: 80, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  comingTitle: { fontSize: 20, fontWeight: '800', marginBottom: 10 },
+  comingText: { fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 25 },
+
+  pulseContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F59E0B10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F59E0B', marginRight: 8 },
+  pulseText: { fontSize: 10, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.5 },
+
+  tipCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 20, gap: 12 },
+  tipText: { flex: 1, fontSize: 12, color: '#3B82F6', fontWeight: '600', lineHeight: 18 },
 });

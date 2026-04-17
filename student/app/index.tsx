@@ -7,24 +7,24 @@ import {
   ImageBackground,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 export default function Index() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ImageBackground
-        source={require(".././assets/images/background.jpeg")} // ✅ adjust path
-        resizeMode="stretch"
-        style={styles.background}
-      >
+    <ImageBackground
+      source={require(".././assets/images/background.jpeg")} // ✅ adjust path
+      resizeMode="stretch"
+      style={styles.background}
+    >
+      <SafeAreaView style={styles.container}>
         <View style={styles.centeredContent}>
           {/* Logo */}
           <Image
-            source={require(".././assets/images/logo.jpeg")} // ✅ adjust path
+            source={require(".././assets/images/logo.png")} // ✅ using transparent logo
             style={styles.logo}
             resizeMode="contain"
           />
@@ -34,18 +34,21 @@ export default function Index() {
           {/* Get Started Button */}
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push("./role_selection")}
+            onPress={() => router.push("./login")}
           >
             <Text style={styles.buttonText}>GET STARTED</Text>
           </TouchableOpacity>
         </View>
-      </ImageBackground>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+  },
   background: {
     flex: 1,
     padding: 24,

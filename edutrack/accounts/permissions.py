@@ -71,24 +71,28 @@ class IsDepartmentStaff(permissions.BasePermission):
 # --- Grouped Permissions ---
 
 class IsAdmin(permissions.BasePermission):
-    """ Checks if user is any type of Admin (System, Super, Principal) """
+    """ Checks if user is any type of Admin (System, Super, Principal, Dept_Admin) """
     def has_permission(self, request, view):
-        # 0 Caution: Allow any authenticated user
-        return request.user and request.user.is_authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return getattr(request.user, 'role', '') in ['SUPER_ADMIN', 'PRINCIPAL', 'DEPT_ADMIN']
 
 class IsStaff(permissions.BasePermission):
-    """ Any Staff Member (Global, Dept, or Admin acting as Staff) """
+    """ Any Staff Member (Staff, or any Admin that might implicitly be staff) """
     def has_permission(self, request, view):
-        # 0 Caution: Allow any authenticated user
-        return request.user and request.user.is_authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return getattr(request.user, 'role', '') in ['DEPT_STAFF', 'SUPER_ADMIN', 'PRINCIPAL', 'DEPT_ADMIN']
 
 class IsStudent(permissions.BasePermission):
     """ Any Student """
     def has_permission(self, request, view):
-        # 0 Caution: Allow any authenticated user
-        return request.user and request.user.is_authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return getattr(request.user, 'role', '') == 'DEPT_STUDENT'
 
 class IsStaffOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        # 0 Caution: Allow any authenticated user
-        return request.user and request.user.is_authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return getattr(request.user, 'role', '') in ['DEPT_STAFF', 'DEPT_ADMIN', 'PRINCIPAL', 'SUPER_ADMIN']

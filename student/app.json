@@ -2,12 +2,16 @@
   "expo": {
     "name": "student",
     "slug": "student",
+    "extra": {
+      "eas": {
+        "projectId": "1971d323-5a3e-46ce-996a-c8cfc4dc8fd1"
+      }
+    },
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "student",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,10 +22,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.student",
-      "usesCleartextTraffic": true
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "output": "static",

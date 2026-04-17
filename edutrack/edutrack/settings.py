@@ -47,53 +47,35 @@ INSTALLED_APPS = [
 ]
 
 JAZZMIN_SETTINGS = {
-    "site_title": "EduTrack Admin",
+    "site_title": "EduTrack Administrator",
     "site_header": "EduTrack",
     "site_brand": "EduTrack",
     "site_logo": "img/logo.png",
     "login_logo": "img/logo.png",
-    "welcome_sign": "Welcome",
-    "copyright": "EduTrack",
+    "welcome_sign": "Administrator Access",
+    "copyright": "EduTrack Systems",
     "search_model": "accounts.User",
     "show_sidebar": True,
-    "navigation_expanded": False, # Collapsed on load to save space on mobile
+    "navigation_expanded": False,
     "changeform_format": "single",
     "custom_css": "css/custom_admin.css",
-    "hide_apps": [],
-    "hide_models": [],
     "icons": {
-        "accounts.User": "fas fa-users",
-        "accounts.Department": "fas fa-university",
-        "accounts.Student": "fas fa-user-graduate",
-        "accounts.StaffProfile": "fas fa-chalkboard-teacher",
+        "accounts.User": "fas fa-users-cog",
+        "accounts.Department": "fas fa-building",
+        "accounts.Student": "fas fa-graduation-cap",
+        "accounts.StaffProfile": "fas fa-user-tie",
     },
-    "topmenu_links": [
-        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
-    ],
-    "show_ui_builder": False,
+    "order_with_respect_to": ["accounts", "student_profile", "Staff_profile"],
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "minty",
+    "theme": "flatly",
     "dark_mode_theme": "darkly",
-    "navbar": "navbar-dark",
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "main_bg": "",
-    "main_hover_color": "",
-    "brand_small_text": False,
-    "page_header_small_text": False,
-    "body_small_text": False,
-    "footer_small_text": False,
-    "accent": "accent-info",
-    "navbar_small_text": False,
-    "no_navbar_border": True,
+    "navbar": "navbar-indigo",
+    "sidebar": "sidebar-dark-indigo",
+    "accent": "accent-primary",
+    "navbar_fixed": True,
     "sidebar_fixed": True,
-    "layout_boxed": False,
-    "footer_fixed": False,
     "actions_sticky_top": True
 }
 
@@ -177,14 +159,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 SPECTACULAR_SETTINGS = {
-    'default': dj_database_url.config(
-        default='postgres://postgres:bavin@host:54321/edutrack'
-    )
+    'TITLE': 'EduTrack API',
+    'DESCRIPTION': 'API documentation for EduTrack',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 

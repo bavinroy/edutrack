@@ -1,8 +1,8 @@
 from PIL import Image, ImageDraw
 
 def remove_bg():
-    input_path = "static/img/logo.jpg"
-    output_path = "static/img/logo.png"
+    input_path = r"c:/Users/HP/Desktop/tail/student/assets/images/logo.jpeg"
+    output_path = r"c:/Users/HP/Desktop/tail/student/assets/images/logo.png"
     
     try:
         img = Image.open(input_path).convert("RGBA")

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
     View,
@@ -8,247 +7,348 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    SafeAreaView,
     Alert,
-    Platform,
-    ActionSheetIOS,
+    StatusBar,
+    ActivityIndicator,
+    Modal,
+    Dimensions
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import axios from "axios";
+import { useTheme } from "../../context/ThemeContext";
+
+const { width } = Dimensions.get("window");
 
 export default function DeptAdminProfileScreen() {
     const router = useRouter();
-    const pathname = usePathname();
-
-    const [profile, setProfile] = useState<any>({
-        username: "",
-        email: "",
-        phone_number: "",
-        department: "",
-        designation: "",
-        staff_id: "",
-    });
+    const { isDark, theme: themeColors } = useTheme();
+    
+    const [profile, setProfile] = useState<any>(null);
+    const [editForm, setEditForm] = useState<any>({});
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [token, setToken] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [updating, setUpdating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-    useEffect(() => {
-        const fetchTokenAndProfile = async () => {
-            const storedToken = await AsyncStorage.getItem("accessToken");
-            if (!storedToken) return;
-            setToken(storedToken);
-            await fetchProfile(storedToken);
-        };
-        fetchTokenAndProfile();
-    }, []);
+    useEffect(() => { fetchProfile(); }, []);
 
-    const fetchProfile = async (token: string) => {
+    const fetchProfile = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/staff/profile/`, {
-                method: "GET",
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            const token = await AsyncStorage.getItem("accessToken");
+            const res = await axios.get(`${API_BASE_URL}/api/staff/profile/`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
-            const text = await res.text();
-            let data;
-            try { data = JSON.parse(text); } catch { data = text; }
-
-            if (res.ok) {
-                if (data.avatar && typeof data.avatar === "string" && !data.avatar.startsWith("http")) {
-                    data.avatar = `${API_BASE_URL}${data.avatar}`;
-                }
-                setProfile(data);
-                if (data.avatar) setAvatarUri(data.avatar);
-            } else {
-                Alert.alert("Error fetching profile", data.detail || "Unknown error");
+            const data = res.data;
+            if (data.avatar && !data.avatar.startsWith("http")) {
+                data.avatar = `${API_BASE_URL}${data.avatar}`;
             }
-        } catch (err) {
-            console.error("Network error:", err);
-            Alert.alert("Network Error", "Failed to connect to server");
-        }
-    };
-
-    const pickImageFromGallery = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") return Alert.alert("Permission denied", "We need access to your gallery.");
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images });
-        if (!result.canceled) setAvatarUri(result.assets[0].uri);
-    };
-
-    const takePhotoWithCamera = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== "granted") return Alert.alert("Permission denied", "We need access to your camera.");
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images });
-        if (!result.canceled) setAvatarUri(result.assets[0].uri);
-    };
-
-    const handleEditAvatar = () => {
-        if (Platform.OS === "ios") {
-            ActionSheetIOS.showActionSheetWithOptions(
-                { options: ["Cancel", "Camera", "Gallery"], cancelButtonIndex: 0 },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) takePhotoWithCamera();
-                    else if (buttonIndex === 2) pickImageFromGallery();
-                }
-            );
-        } else {
-            Alert.alert(
-                "Select Image",
-                "Choose an option",
-                [
-                    { text: "Camera", onPress: takePhotoWithCamera },
-                    { text: "Gallery", onPress: pickImageFromGallery },
-                    { text: "Cancel", style: "cancel" },
-                ],
-                { cancelable: true }
-            );
-        }
-    };
-
-    const handleUpdateProfile = async () => {
-        if (!token) return;
-        setLoading(true);
-        try {
-            const formData = new FormData();
-            if (profile.phone_number) formData.append("phone_number", profile.phone_number);
-            if (profile.department) formData.append("department", profile.department);
-            if (profile.designation) formData.append("designation", profile.designation);
-
-            if (avatarUri && !avatarUri.startsWith("http")) {
-                const filename = avatarUri.split("/").pop() || "profile.jpg";
-                const match = /\.(\w+)$/.exec(filename);
-                let type = match ? `image/${match[1]}` : `image/jpeg`;
-                if (type === 'image/jpg') type = 'image/jpeg';
-
-                formData.append("avatar", { uri: avatarUri, name: filename, type } as any);
-            }
-
-            const res = await fetch(`${API_BASE_URL}/api/staff/profile/update/`, {
-                method: "PUT",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
-                body: formData,
+            setProfile(data);
+            setEditForm({
+                first_name: data.first_name || "",
+                last_name: data.last_name || "",
+                email: data.email || "",
+                phone_number: data.phone_number || "",
+                designation: data.designation || ""
             });
-
-            const data = await res.json();
-            if (res.ok) {
-                Alert.alert("Success", "Profile updated successfully");
-                setProfile({ ...profile, ...data });
-                if (data.avatar) setAvatarUri(data.avatar);
-            } else {
-                const errorMsg = data.detail || (data.errors ? JSON.stringify(data.errors, null, 2) : "Failed to update profile");
-                Alert.alert("Data Error", errorMsg);
-            }
+            if (data.avatar) setAvatarUri(data.avatar);
         } catch (err) {
-            console.error(err);
-            Alert.alert("Error", "Something went wrong updating profile");
+            console.error("Profile fetch error:", err);
         } finally {
             setLoading(false);
         }
     };
 
+    const handlePickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") return Alert.alert("Permissions Required", "We need access to your photos.");
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7
+        });
+        if (!result.canceled) {
+            const selectedUri = result.assets[0].uri;
+            setAvatarUri(selectedUri);
+            uploadAvatar(selectedUri);
+        }
+    };
+
+    const uploadAvatar = async (uri: string) => {
+        try {
+            const token = await AsyncStorage.getItem("accessToken");
+            const formData = new FormData();
+            const filename = uri.split("/").pop() || "profile.jpg";
+            formData.append("avatar", { uri, name: filename, type: "image/jpeg" } as any);
+
+            await axios.put(`${API_BASE_URL}/api/staff/profile/update/`, formData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "multipart/form-data"
+                }
+            });
+        } catch (err) {
+            console.error("Avatar upload error:", err);
+        }
+    };
+
+    const handleUpdate = async () => {
+        setUpdating(true);
+        try {
+            const token = await AsyncStorage.getItem("accessToken");
+            const payload = {
+                first_name: editForm.first_name,
+                last_name: editForm.last_name,
+                email: editForm.email,
+                phone_number: editForm.phone_number,
+                designation: editForm.designation
+            };
+
+            await axios.put(`${API_BASE_URL}/api/staff/profile/update/`, payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            Alert.alert("Success", "Personnel records updated.");
+            setIsEditing(false);
+            fetchProfile();
+        } catch (err) {
+            Alert.alert("Error", "Failed to update profile.");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    if (loading || !profile) {
+        return (
+            <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
+                <ActivityIndicator size="large" color="#6366F1" />
+            </View>
+        );
+    }
+
+    const initials = (profile?.first_name?.[0] || profile?.username?.[0] || "A").toUpperCase();
+
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <Text style={styles.title}>👔 Dept Admin Profile</Text>
+        <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+            
+            {/* Header */}
+            <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    <Ionicons name="chevron-back" size={28} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: themeColors.text }]}>My Profile</Text>
+                <TouchableOpacity onPress={() => setShowLogoutModal(true)} style={styles.logoutBtn}>
+                    <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+                </TouchableOpacity>
+            </View>
 
-                <View style={styles.avatarContainer}>
-                    <Image
-                        source={avatarUri ? { uri: avatarUri } : require("../../assets/images/react-logo.png")}
-                        style={styles.avatar}
-                    />
-                    <TouchableOpacity style={styles.editIcon} onPress={handleEditAvatar}>
-                        <Ionicons name="pencil" size={18} color="#fff" />
-                    </TouchableOpacity>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+                {/* Profile Section */}
+                <View style={styles.profileSection}>
+                    <View style={styles.avatarWrapper}>
+                        {avatarUri ? (
+                            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                        ) : (
+                            <View style={[styles.avatarPlaceholder, { backgroundColor: '#6366F120' }]}>
+                                <Text style={styles.avatarTxt}>{initials}</Text>
+                            </View>
+                        )}
+                        <TouchableOpacity style={styles.editAvatarBtn} onPress={handlePickImage} disabled={updating}>
+                            <Ionicons name="camera" size={18} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.name, { color: themeColors.text }]}>
+                        {profile.first_name} {profile.last_name}
+                    </Text>
+                    <Text style={[styles.subtitle, { color: themeColors.subText }]}>
+                        {profile.designation || "Department Head"}
+                    </Text>
                 </View>
 
-                <View style={{ width: "100%" }}>
-                    <Text style={styles.label}>Username</Text>
-                    <TextInput style={styles.input} value={profile.username} editable={false} />
+                {/* Form Section */}
+                <View style={styles.formSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionLabel, { color: themeColors.subText }]}>PROFILE INFORMATION</Text>
+                        <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editToggle}>
+                            <Text style={[styles.editToggleTxt, { color: isEditing ? "#EF4444" : "#6366F1" }]}>
+                                {isEditing ? "Cancel" : "Edit Profile"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>NAME</Text>
+                        {isEditing ? (
+                            <View style={styles.rowInputs}>
+                                <TextInput 
+                                    style={[styles.input, { color: themeColors.text, flex: 1 }]} 
+                                    value={editForm.first_name} 
+                                    onChangeText={t => setEditForm({...editForm, first_name: t})}
+                                    placeholder="First Name"
+                                />
+                                <TextInput 
+                                    style={[styles.input, { color: themeColors.text, flex: 1, marginLeft: 10 }]} 
+                                    value={editForm.last_name} 
+                                    onChangeText={t => setEditForm({...editForm, last_name: t})}
+                                    placeholder="Last Name"
+                                />
+                            </View>
+                        ) : (
+                            <Text style={[styles.val, { color: themeColors.text }]}>{profile.first_name || 'N/A'} {profile.last_name || ''}</Text>
+                        )}
+                    </View>
 
-                    <Text style={styles.label}>Email</Text>
-                    <TextInput style={styles.input} value={profile.email} editable={false} />
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>EMAIL ADDRESS</Text>
+                        {isEditing ? (
+                            <TextInput 
+                                style={[styles.input, { color: themeColors.text }]} 
+                                value={editForm.email} 
+                                onChangeText={t => setEditForm({...editForm, email: t})}
+                                keyboardType="email-address"
+                            />
+                        ) : (
+                            <Text style={[styles.val, { color: themeColors.text }]}>{profile.email || 'N/A'}</Text>
+                        )}
+                    </View>
 
-                    <Text style={styles.label}>Phone number</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={profile.phone_number}
-                        onChangeText={(text) => setProfile({ ...profile, phone_number: text })}
-                    />
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderBottomWidth: 1, borderColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>MOBILE NUMBER</Text>
+                        {isEditing ? (
+                            <TextInput 
+                                style={[styles.input, { color: themeColors.text }]} 
+                                value={editForm.phone_number} 
+                                onChangeText={t => setEditForm({...editForm, phone_number: t})}
+                                placeholder="Add your contact number"
+                                keyboardType="phone-pad"
+                            />
+                        ) : (
+                            <Text style={[styles.val, { color: themeColors.text }]}>{profile.phone_number || 'Not Linked'}</Text>
+                        )}
+                    </View>
 
-                    <Text style={styles.label}>Department</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={profile.department}
-                        editable={false} // Dept Admin shouldn't change their department freely via profile text?
-                    />
+                    <Text style={[styles.sectionLabel, { color: themeColors.subText, marginTop: 40 }]}>OFFICIAL ASSIGNMENT</Text>
+                    
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>DESIGNATION</Text>
+                        {isEditing ? (
+                            <TextInput 
+                                style={[styles.input, { color: themeColors.text }]} 
+                                value={editForm.designation} 
+                                onChangeText={t => setEditForm({...editForm, designation: t})}
+                                placeholder="e.g. Associate Professor"
+                            />
+                        ) : (
+                            <Text style={[styles.val, { color: themeColors.text }]}>{profile.designation || 'Department Head'}</Text>
+                        )}
+                    </View>
 
-                    <Text style={styles.label}>Role</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={profile.role}
-                        editable={false}
-                    />
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderTopColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>DEPARTMENT</Text>
+                        <Text style={[styles.val, { color: themeColors.text, opacity: 0.7 }]}>{profile.department || "General"}</Text>
+                    </View>
 
-                </View>
+                    <View style={[styles.inputGroup, { borderTopWidth: 1, borderBottomWidth: 1, borderColor: themeColors.border }]}>
+                        <Text style={[styles.inputLabel, { color: themeColors.subText }]}>SYSTEM ID</Text>
+                        <Text style={[styles.val, { color: themeColors.text, opacity: 0.7 }]}>{profile.username?.toUpperCase()}</Text>
+                    </View>
 
-                <View style={{ width: "100%" }}>
-                    <TouchableOpacity style={styles.button} onPress={handleUpdateProfile}>
-                        <Text style={styles.buttonText}>{loading ? "Updating..." : "Save changes"}</Text>
-                    </TouchableOpacity>
+                    {isEditing && (
+                        <TouchableOpacity 
+                            style={[styles.saveBtn, updating && { opacity: 0.7 }]} 
+                            onPress={handleUpdate}
+                            disabled={updating}
+                        >
+                            {updating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnTxt}>Save Changes</Text>}
+                        </TouchableOpacity>
+                    )}
 
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => router.push("/admin/changepassword")}
+                    <TouchableOpacity 
+                        style={[styles.passwordBtn, { borderColor: themeColors.border, marginTop: isEditing ? 15 : 40 }]} 
+                        onPress={() => router.push("/staff/changepassword")}
                     >
-                        <Text style={styles.buttonText}>Change Password</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: "#FF3B30", marginTop: 15 }]}
-                        onPress={async () => {
-                            await AsyncStorage.clear();
-                            router.replace("/login");
-                        }}
-                    >
-                        <Text style={styles.buttonText}>Logout</Text>
+                        <Ionicons name="lock-closed-outline" size={20} color="#6366F1" />
+                        <Text style={[styles.passwordBtnTxt, { color: themeColors.text }]}>Change Password</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
 
-            {/* Bottom Navigation */}
-            <View style={styles.bottomNav}>
-                <Ionicons name="home" size={24} color={pathname === "/dept_admin/dashboard" ? "#0e0e0dff" : "#fff"} onPress={() => router.push("/dept_admin/dashboard")} />
-                <Ionicons name="list-outline" size={24} color={pathname === "/dept_admin/requests" ? "#0e0e0dff" : "#fff"} onPress={() => router.push("/dept_admin/requests")} />
-                <Ionicons name="desktop-outline" size={24} color={pathname === "/dept_admin/notice" ? "#0e0e0dff" : "#fff"} onPress={() => router.push("/dept_admin/notice")} />
-                <Ionicons name="person-circle-outline" size={24} color={pathname === "/dept_admin/profile" ? "#0e0e0dff" : "#fff"} onPress={() => router.push("/dept_admin/profile")} />
-            </View>
-
+            {/* Logout Modal */}
+            <Modal visible={showLogoutModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalBox, { backgroundColor: themeColors.card }]}>
+                        <Text style={[styles.modalTitle, { color: themeColors.text }]}>Logout</Text>
+                        <Text style={[styles.modalSub, { color: themeColors.subText }]}>Are you sure you want to sign out?</Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowLogoutModal(false)}>
+                                <Text style={[styles.cancelBtnTxt, { color: themeColors.text }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmLogoutBtn} onPress={async () => {
+                                await AsyncStorage.clear();
+                                router.replace("/");
+                            }}>
+                                <Text style={styles.confirmLogoutTxt}>Logout</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20, alignItems: "center", paddingBottom: 120 },
-    title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-    avatarContainer: { alignItems: "center", marginBottom: 20 },
-    avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 10 },
-    editIcon: { position: "absolute", right: 0, bottom: 0, backgroundColor: "#007BFF", borderRadius: 50, padding: 6 },
-    label: { fontSize: 14, fontWeight: "500", marginBottom: 5, marginTop: 8, textAlign: "left" },
-    input: { width: "100%", borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, backgroundColor: "#f9f9f9", marginBottom: 10 },
-    button: {
-        backgroundColor: "#00B9BD",
-        paddingVertical: 14,
-        borderRadius: 12,
-        marginTop: 15,
-        alignItems: "center",
-        width: "100%",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-    },
-    buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-    bottomNav: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#30e4de", paddingVertical: 12, position: "absolute", bottom: 0, width: "100%", borderTopLeftRadius: 16, borderTopRightRadius: 16, elevation: 8 },
+    container: { flex: 1 },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, height: 60, borderBottomColor: '#ccc', borderBottomWidth: 0.5 },
+    backBtn: { padding: 4 },
+    headerTitle: { fontSize: 18, fontWeight: '700' },
+    logoutBtn: { padding: 4 },
+    
+    scroll: { paddingBottom: 60 },
+    profileSection: { alignItems: 'center', paddingVertical: 40 },
+    avatarWrapper: { position: 'relative', marginBottom: 20 },
+    avatar: { width: 100, height: 100, borderRadius: 50 },
+    avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center' },
+    avatarTxt: { fontSize: 32, fontWeight: '700', color: '#6366F1' },
+    editAvatarBtn: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#6366F1', width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
+    
+    name: { fontSize: 22, fontWeight: '800' },
+    subtitle: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+
+    formSection: { paddingHorizontal: 20 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    editToggle: { padding: 5 },
+    editToggleTxt: { fontSize: 12, fontWeight: '800' },
+
+    inputGroup: { paddingVertical: 18 },
+    inputLabel: { fontSize: 9, fontWeight: '800', marginBottom: 10 },
+    val: { fontSize: 16, fontWeight: '600' },
+    input: { fontSize: 16, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: '#6366F1', paddingVertical: 2 },
+    rowInputs: { flexDirection: 'row' },
+
+    saveBtn: { backgroundColor: '#10B981', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
+    saveBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    
+    passwordBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 56, borderRadius: 16, borderWidth: 1 },
+    passwordBtnTxt: { fontSize: 14, fontWeight: '800' },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 30 },
+    modalBox: { width: '100%', borderRadius: 24, padding: 25 },
+    modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 10 },
+    modalSub: { fontSize: 14, marginBottom: 25, lineHeight: 20 },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 15 },
+    cancelBtn: { padding: 10 },
+    cancelBtnTxt: { fontWeight: '700' },
+    confirmLogoutBtn: { backgroundColor: '#EF4444', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+    confirmLogoutTxt: { color: '#fff', fontWeight: '700' }
 });

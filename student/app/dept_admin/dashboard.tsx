@@ -1,115 +1,407 @@
-
-// app/dept_admin/dashboard.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    StyleSheet,
-    ImageBackground,
-    ActivityIndicator,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  Dimensions,
+  StatusBar,
+  RefreshControl,
+  Image,
 } from "react-native";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import axios from "axios";
+import { API_BASE_URL } from "../config";
+import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
+import { useTheme } from "../../context/ThemeContext";
+
+const { width } = Dimensions.get("window");
 
 export default function DeptAdminDashboard() {
-    const router = useRouter();
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { isDark, theme: themeColors } = useTheme();
+  
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [stats, setStats] = useState({
+    pendingRequests: 0,
+    identityRequests: 0,
+    activeNotices: 0,
+    pendingTimetables: 0
+  });
+  const [showBurgerMenu, setShowBurgerMenu] = useState(false);
 
-    useEffect(() => {
-        // optional simple init
-    }, []);
+  const fetchAllData = async () => {
+    try {
+      const token = await AsyncStorage.getItem("accessToken");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      const headers = { Authorization: `Bearer ${token}` };
 
-    const handleNav = (path: string) => {
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            router.push(path as any);
-        }, 500);
-    };
+      // We catch individually to prevent one failure from breaking the whole dashboard
+      const [profRes, reqRes, identityRes, noticeRes, timetableRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/staff/profile/`, { headers }).catch(e => {
+            console.error("Profile Fetch Error:", e);
+            return { data: profile || {} };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/request/admin/list/`, { headers }).catch(e => {
+            console.error("Requests Fetch Error:", e);
+            return { data: [] };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/account-request/list/`, { headers }).catch(e => {
+            console.error("Identity Fetch Error:", e);
+            return { data: [] };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/notice/list/`, { headers }).catch(e => {
+            console.error("Notice Fetch Error:", e);
+            return { data: [] };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/timetables/pending/`, { headers }).catch(e => {
+            console.error("Timetable Fetch Error:", e);
+            return { data: [] };
+        })
+      ]);
 
-    const handleLogout = async () => {
-        await AsyncStorage.clear();
-        router.replace("/login");
-    };
+      if (profRes && profRes.data) {
+        const profData = profRes.data;
+        if (profData.avatar && !profData.avatar.startsWith("http")) {
+            profData.avatar = `${API_BASE_URL}${profData.avatar}`;
+        }
+        setProfile(profData);
+      }
 
-    if (loading) {
-        return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color="#30e4de" />
-                <Text style={styles.loaderText}>Loading...</Text>
-            </View>
-        );
+      setStats({
+        pendingRequests: Array.isArray(reqRes.data) ? reqRes.data.filter((r: any) => r.admin_status === 'pending').length : 0,
+        identityRequests: Array.isArray(identityRes.data) ? identityRes.data.filter((r: any) => r.status === 'PENDING').length : 0,
+        activeNotices: Array.isArray(noticeRes.data) ? noticeRes.data.length : 0,
+        pendingTimetables: Array.isArray(timetableRes.data) ? timetableRes.data.length : 0
+      });
+
+    } catch (err) {
+      console.error("Dept Admin dashboard critical error", err);
+      // Optional: Alert.alert("Connection Error", "Failed to sync with administrative vault.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllData();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAllData();
+  };
+
+  const handleNav = (path: string) => {
+    router.push(path as any);
+  };
+
+  if (loading) {
     return (
-        <ImageBackground
-            source={require("../../assets/images/back.jpg")}
-            style={styles.background}
-            resizeMode="cover"
-        >
-            {/* Header */}
-            <View style={styles.header}>
-                <Ionicons name="arrow-back" size={24} color="#00B9BD" onPress={handleLogout} />
-                <Text style={styles.headerTitle}>DEPT ADMIN</Text>
-                <Ionicons name="notifications-outline" size={24} color="orange" />
-            </View>
-
-            {/* Menu */}
-            <View style={styles.menu}>
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/dept_admin/profile")}>
-                    <Text style={styles.menuText}>PROFILE</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/dept_admin/requests")}>
-                    <Text style={styles.menuText}>MANAGE REQUESTS</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/dept_admin/notice")}>
-                    <Text style={styles.menuText}>NOTICE BOARD</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/dept_admin/my_department")}>
-                    <Text style={styles.menuText}>MY DEPARTMENT</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/dept_admin/bulk_upload")}>
-                    <Text style={styles.menuText}>BULK UPLOAD USERS</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleNav("/admin/django_admin")}>
-                    <Text style={styles.menuText}>ADMINISTRATOR</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Bottom Nav */}
-            <View style={styles.bottomNav}>
-                <TouchableOpacity onPress={() => handleNav("/dept_admin/dashboard")}>
-                    <Ionicons name="home" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleNav("/dept_admin/requests")}>
-                    <Ionicons name="list-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleNav("/dept_admin/notice")}>
-                    <Ionicons name="desktop-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleNav("/dept_admin/profile")}>
-                    <Ionicons name="person-circle-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-            </View>
-        </ImageBackground>
+      <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={[styles.loaderText, { color: themeColors.subText }]}>Initializing Admin Portal...</Text>
+      </View>
     );
+  }
+
+  const adminName = profile?.first_name || profile?.username || "AdminISTRATOR";
+  const deptName = profile?.department?.toUpperCase() || "DEPARTMENT";
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+      
+      {/* Premium Header */}
+      <View style={[styles.header, { backgroundColor: themeColors.headerBg, borderBottomColor: themeColors.border }]}>
+        <View style={styles.branding}>
+           <Text style={[styles.headerTitle, { color: themeColors.text }]}>EduTrack <Text style={{color: '#6366F1'}}>HOD</Text></Text>
+        </View>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => setShowBurgerMenu(true)}>
+          <Ionicons name="apps-outline" size={28} color={themeColors.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Burger Menu Layer */}
+      {showBurgerMenu && (
+        <>
+          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setShowBurgerMenu(false)} />
+          <View style={[styles.burgerDropdown, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <View style={styles.dropdownHeader}>
+              <Text style={[styles.dropdownHeaderTitle, { color: themeColors.text }]}>Management Menu</Text>
+              <TouchableOpacity onPress={() => setShowBurgerMenu(false)}>
+                <Ionicons name="close" size={24} color={themeColors.subText} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setShowBurgerMenu(false); handleNav("/dept_admin/profile"); }}>
+              <View style={[styles.dropdownIconBox, { backgroundColor: '#6366F115' }]}><Ionicons name="person-outline" size={18} color="#6366F1" /></View>
+              <Text style={[styles.dropdownText, { color: themeColors.text }]}>My Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setShowBurgerMenu(false); handleNav("/dept_admin/django_admin"); }}>
+              <View style={[styles.dropdownIconBox, { backgroundColor: '#8B5CF615' }]}><Ionicons name="shield-checkmark-outline" size={18} color="#8B5CF6" /></View>
+              <Text style={[styles.dropdownText, { color: themeColors.text }]}>System Admin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setShowBurgerMenu(false); handleNav("/dept_admin/settings"); }}>
+              <View style={[styles.dropdownIconBox, { backgroundColor: '#F59E0B15' }]}><Ionicons name="settings-outline" size={18} color="#F59E0B" /></View>
+              <Text style={[styles.dropdownText, { color: themeColors.text }]}>Portal Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setShowBurgerMenu(false); handleNav("/dept_admin/developer_info"); }}>
+              <View style={[styles.dropdownIconBox, { backgroundColor: '#10B98115' }]}><Ionicons name="code-slash" size={18} color="#10B981" /></View>
+              <Text style={[styles.dropdownText, { color: themeColors.text }]}>Developer Info</Text>
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+            <TouchableOpacity style={styles.dropdownItem} onPress={async () => { await AsyncStorage.clear(); router.replace("/"); }}>
+              <View style={[styles.dropdownIconBox, { backgroundColor: '#FEE2E2' }]}><Ionicons name="log-out-outline" size={18} color="#EF4444" /></View>
+              <Text style={[styles.dropdownText, { color: "#EF4444" }]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollBody} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366F1"]} />}
+      >
+        {/* Profile Card */}
+        <View style={[styles.profileCard, { backgroundColor: isDark ? '#1E293B' : '#6366F1' }]}>
+          <View style={styles.profileMain}>
+            <View style={styles.profileTexts}>
+              <Text style={styles.profileGreeting}>Welcome back,</Text>
+              <Text style={styles.profileName}>{adminName}</Text>
+              <Text style={styles.profileDept}>{deptName} ADMINISTRATION</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleNav("/dept_admin/profile")}>
+               {profile?.avatar ? (
+                 <Image source={{ uri: profile.avatar }} style={styles.profileImg} />
+               ) : (
+                 <View style={styles.avatarPlaceholder}>
+                   <Ionicons name="person" size={24} color="#6366F1" />
+                 </View>
+               )}
+            </TouchableOpacity>
+          </View>
+          
+          <View style={[styles.profileDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+          
+          <View style={styles.metricsRow}>
+             <View style={styles.metricItem}>
+                <Text style={styles.metricVal}>{stats.pendingRequests + stats.identityRequests}</Text>
+                <Text style={styles.metricLab} numberOfLines={1}>PENDING REQS</Text>
+             </View>
+             <View style={[styles.metricItem, { flex: 1.5 }]}>
+                <Text style={styles.metricVal}>{stats.pendingTimetables}</Text>
+                <Text style={styles.metricLab} numberOfLines={1}>PENDING TIMETABLES</Text>
+             </View>
+             <View style={styles.metricItem}>
+                <Text style={styles.metricVal}>{stats.activeNotices}</Text>
+                <Text style={styles.metricLab} numberOfLines={1}>ACTIVE NOTICES</Text>
+             </View>
+          </View>
+        </View>
+
+        {/* Action Center Title */}
+        <View style={styles.sectionHeader}>
+           <Text style={[styles.sectionTitle, { color: themeColors.text }]}>DEPARTMENT OVERVIEW</Text>
+           <TouchableOpacity onPress={() => handleNav("/dept_admin/notice")}>
+             <Text style={styles.seeAll}>Broadcast Notice</Text>
+           </TouchableOpacity>
+        </View>
+
+        {/* Priority Card: Pending Tasks */}
+        {(stats.pendingRequests > 0 || stats.identityRequests > 0 || stats.pendingTimetables > 0) ? (
+            <TouchableOpacity 
+            style={[styles.sessionCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            onPress={() => handleNav("/dept_admin/requests")}
+            >
+            <View style={[styles.cardTag, { backgroundColor: '#EF4444' }]}>
+                <Text style={styles.cardTagText}>PENDING ACTIONS</Text>
+            </View>
+            {/* Priority Card logic continues */}
+            <View style={styles.sessionMain}>
+                <View style={[styles.sessionIcon, { backgroundColor: '#EF444415' }]}>
+                <MaterialCommunityIcons name="alert-decagram" size={32} color="#EF4444" />
+                </View>
+                <View style={styles.sessionInfo}>
+                    <Text style={[styles.sessionSubj, { color: themeColors.text }]}>Pending Approvals</Text>
+                    <Text style={[styles.sessionTime, { color: themeColors.subText }]}>
+                        {stats.pendingRequests} Student Reqs • {stats.pendingTimetables} Timetables
+                    </Text>
+                    <View style={styles.sessionFooter}>
+                        <TouchableOpacity style={[styles.actionPill, { backgroundColor: '#EF4444' }]} onPress={() => handleNav("/dept_admin/requests")}>
+                            <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                            <Text style={styles.actionPillText}>Review All</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+            </TouchableOpacity>
+        ) : (
+            <View style={[styles.sessionCard, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderStyle: 'dashed' }]}>
+                <View style={styles.sessionMain}>
+                    <View style={[styles.sessionIcon, { backgroundColor: '#10B98115' }]}>
+                        <Ionicons name="checkmark-done-circle" size={32} color="#10B981" />
+                    </View>
+                    <View style={styles.sessionInfo}>
+                        <Text style={[styles.sessionSubj, { color: themeColors.text }]}>All Caught Up!</Text>
+                        <Text style={[styles.sessionTime, { color: themeColors.subText }]}>No pending approvals for your department.</Text>
+                    </View>
+                </View>
+            </View>
+        )}
+
+        {/* Main Service Grid */}
+        <Text style={[styles.sectionTitle, { color: themeColors.text, marginTop: 30 }]}>RESOURCES & TOOLS</Text>
+        <View style={styles.servicesGrid}>
+          {[
+            { id: 1, name: 'Student Reqs', icon: 'envelope-open-text', route: '/dept_admin/requests', color: '#F59E0B', count: stats.pendingRequests + stats.identityRequests },
+            { id: 2, name: 'Faculty List', icon: 'users', route: '/dept_admin/staff_list', color: '#6366F1' },
+            { id: 3, name: 'Student List', icon: 'user-graduate', route: '/dept_admin/student_biodata', color: '#10B981' },
+            { id: 4, name: 'Timetables', icon: 'calendar-alt', route: '/dept_admin/timetable', color: '#8B5CF6', tag: stats.pendingTimetables > 0 ? 'Review' : null },
+            { id: 5, name: 'Attendance', icon: 'chart-bar', route: '/dept_admin/attendance_report', color: '#3B82F6' },
+            { id: 6, name: 'Notice Board', icon: 'bullhorn', route: '/dept_admin/notice', color: '#EF4444' },
+            { id: 7, name: 'Bulk Upload', icon: 'file-upload', route: '/dept_admin/bulk_upload', color: '#EC4899' },
+            { id: 8, name: 'Class Advisors', icon: 'user-shield', route: '/dept_admin/class_advisors', color: '#64748B' },
+            { id: 9, name: 'Subjects', icon: 'book', route: '/dept_admin/subjects', color: '#06B6D4' },
+            { id: 10, name: 'Documents', icon: 'folder-open', route: '/dept_admin/documents', color: '#475569' },
+          ].map(service => (
+            <TouchableOpacity 
+              key={service.id} 
+              style={[styles.serviceItem, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+              onPress={() => handleNav(service.route)}
+            >
+              <View style={[styles.serviceIconWrap, { backgroundColor: `${service.color}15` }]}>
+                <FontAwesome5 name={service.icon} size={22} color={service.color} />
+              </View>
+              <Text style={[styles.serviceName, { color: themeColors.text }]}>{service.name}</Text>
+              {service.tag && (
+                <View style={[styles.serviceTag, { backgroundColor: service.tag === 'Review' ? '#EF4444' : service.color }]}>
+                  <Text style={styles.serviceTagText}>{service.tag}</Text>
+                </View>
+              )}
+              {service.count !== undefined && service.count > 0 && (
+                <View style={[styles.serviceBadge, { backgroundColor: '#EF4444' }]}>
+                  <Text style={styles.serviceBadgeText}>{service.count}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Quick Insights Placeholder */}
+        <View style={[styles.advisoryBanner, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9', borderColor: themeColors.border }]}>
+           <MaterialCommunityIcons name="shield-check" size={24} color="#10B981" />
+           <Text style={[styles.advisoryText, { color: themeColors.text }]}>
+             You are logged in as the Department Administrator. You have full access to faculty and student records within {deptName}.
+           </Text>
+        </View>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+
+      <DeptAdminBottomNav />
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    background: { flex: 1 },
-    loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: '#fff' },
-    loaderText: { marginTop: 10, color: "#00B9BD", fontWeight: "bold" },
-    header: { flexDirection: "row", justifyContent: "space-between", padding: 20, alignItems: "center" },
-    headerTitle: { fontSize: 24, fontWeight: "bold", color: "#00B9BD" },
-    menu: { flex: 1, justifyContent: "center", alignItems: "center", gap: 15 },
-    menuButton: { width: "80%", padding: 15, backgroundColor: "#30e4de", borderRadius: 8, alignItems: "center" },
-    menuText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-    bottomNav: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#30e4de", padding: 15 },
+  container: { flex: 1 },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loaderText: { marginTop: 15, fontSize: 14, fontWeight: "600" },
+  
+  header: { 
+     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+     paddingHorizontal: 24, paddingTop: 40, paddingBottom: 15, borderBottomWidth: 1
+  },
+  branding: { flexDirection: 'row', alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  menuBtn: { padding: 4 },
+  
+  scrollBody: { paddingHorizontal: 20, paddingBottom: 110, paddingTop: 20 },
+  
+  profileCard: {
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 25,
+    elevation: 8,
+    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 15,
+  },
+  profileMain: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  profileTexts: { flex: 1 },
+  profileGreeting: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' },
+  profileName: { color: '#ffffff', fontSize: 22, fontWeight: '800', marginTop: 2 },
+  profileDept: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '700', marginTop: 4, opacity: 0.8 },
+  profileImg: { width: 60, height: 60, borderRadius: 20, borderWidth: 3, borderColor: 'rgba(255,255,255,0.2)' },
+  avatarPlaceholder: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  profileDivider: { height: 1.5, borderRadius: 1, marginVertical: 20 },
+  metricsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5 },
+  metricItem: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  metricVal: { color: '#fff', fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  metricLab: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', marginTop: 4, textAlign: 'center' },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1.5 },
+  seeAll: { fontSize: 13, color: '#6366F1', fontWeight: '700' },
+
+  sessionCard: { borderRadius: 26, padding: 20, borderWidth: 1, marginBottom: 10, elevation: 1, overflow: 'hidden' },
+  cardTag: { position: 'absolute', top: 0, right: 20, paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 },
+  cardTagText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  sessionMain: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  sessionIcon: { width: 64, height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  sessionInfo: { flex: 1 },
+  sessionSubj: { fontSize: 18, fontWeight: '800' },
+  sessionTime: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  sessionFooter: { marginTop: 15 },
+  actionPill: { backgroundColor: '#6366F1', alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  serviceItem: {
+    width: (width - 55) / 2,
+    borderRadius: 22,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
+  },
+  serviceIconWrap: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  serviceName: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  serviceTag: { position: 'absolute', top: 12, right: 12, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 },
+  serviceTagText: { color: '#fff', fontSize: 8, fontWeight: '800' },
+  serviceBadge: { position: 'absolute', top: 10, right: 12, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  serviceBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  advisoryBanner: { 
+    flexDirection: 'row', alignItems: 'center', gap: 15, padding: 18, borderRadius: 20, 
+    marginTop: 25, borderWidth: 1, borderStyle: 'dashed' 
+  },
+  advisoryText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
+
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2999 },
+  burgerDropdown: {
+    position: 'absolute', top: 60, right: 20, borderRadius: 24, padding: 8, width: 240,
+    zIndex: 3000, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2, shadowRadius: 20, borderWidth: 1,
+  },
+  dropdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, marginBottom: 5 },
+  dropdownHeaderTitle: { fontSize: 15, fontWeight: '800' },
+  dropdownItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16 },
+  dropdownIconBox: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  dropdownText: { marginLeft: 12, fontSize: 14, fontWeight: '700' },
+  divider: { height: 1, marginVertical: 8, opacity: 0.5 },
 });
+

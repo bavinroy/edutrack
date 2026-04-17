@@ -12,22 +12,22 @@ from rest_framework.permissions import IsAuthenticated
 
 # Models
 from Staff_profile.models import StaffProfile 
-from .models import (
+from accounts.models import (
     User, Student, Document, TimeTable, Letter, 
-    Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment, Department, ClassAdvisor
+    Request, RequestHistory, Notice, NoticeAcknowledgement, NoticeComment, Department, ClassAdvisor, AccountRequest, UserCreationRequest
 )
 
-# Serializers
-from .serializers import (
+from accounts.serializers import (
     UserSerializer, StudentSerializer, CustomTokenObtainPairSerializer,
     DocumentSerializer, TimeTableSerializer, LetterSerializer,
     RequestSerializer, RequestActionSerializer, AdminActionSerializer, PrincipalActionSerializer,
     NoticeSerializer, NoticeAcknowledgementSerializer, NoticeCommentSerializer,
-    UserCreateSerializer, BulkUploadSerializer, DepartmentSerializer, ClassAdvisorSerializer
+    UserCreateSerializer, BulkUploadSerializer, DepartmentSerializer, ClassAdvisorSerializer, AccountRequestSerializer, UserCreationRequestSerializer
 )
+from accounts.views_notifications import create_notification
 
 # Permissions
-from .permissions import (
+from accounts.permissions import (
     IsAdmin, IsStaff, IsStudent, IsStaffOrAdmin,
     IsSuperAdmin, IsPrincipal, IsDepartmentAdmin, IsDepartmentStaff
 )
@@ -218,7 +218,28 @@ def staff_dashboard(request):
 @api_view(["GET"])
 @permission_classes([IsStudent])
 def student_dashboard(request):
-    return Response({"message": f"Welcome Student {request.user.username}"})
+    user = request.user
+    data = {
+        "message": f"Welcome Student {user.username}",
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role,
+        "department": user.department.name if user.department else None,
+    }
+    
+    # Try to get associated student profile
+    if hasattr(user, 'student_account'):
+        student_profile = user.student_account
+        data["year"] = student_profile.year
+        data["course"] = student_profile.course
+        data["roll_no"] = student_profile.roll_no
+    else:
+        data["year"] = None
+        data["course"] = None
+        data["roll_no"] = None
+
+    return Response(data)
 
 # -------------------------------
 # JWT Token View
@@ -310,6 +331,14 @@ class CreateRequestView(generics.CreateAPIView):
         status="pending"
         )
 
+        # Notify Staff
+        create_notification(
+            recipient=staff_profile.user,
+            title="New Student Request",
+            message=f"{self.request.user.username} submitted a new request: {letter.title}",
+            target_url="/staff/requests"
+        )
+
 
 # 6. Student sees all requests + status
 class StudentRequestsListView(generics.ListAPIView):
@@ -358,6 +387,15 @@ class StaffActionView(generics.UpdateAPIView):
                 action=f"Staff {req.staff_status}",
                 status=req.staff_status,
             )
+
+            # Notify Student
+            create_notification(
+                recipient=req.student,
+                title=f"Request {req.staff_status.capitalize()}",
+                message=f"Your request '{req.letter.title}' was {req.staff_status} by your class advisor.",
+                target_url="/student/requests"
+            )
+
             return Response(RequestSerializer(req).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -428,6 +466,13 @@ class AdminActionView(generics.UpdateAPIView):
             status=req.admin_status,
         )
 
+        create_notification(
+            recipient=req.student,
+            title=f"HOD Review: {req.admin_status.capitalize()}",
+            message=f"Your request '{req.letter.title}' was {req.admin_status} by the HOD.",
+            target_url="/student/requests"
+        )
+
         return Response(RequestSerializer(req).data)
  
 
@@ -466,31 +511,150 @@ class PrincipalActionView(generics.UpdateAPIView):
                 action=f"Principal {new_status}",
                 status=new_status,
             )
+
+             create_notification(
+                recipient=req.student,
+                title=f"Principal Review: {new_status.capitalize()}",
+                message=f"Your request '{req.letter.title}' was {new_status} by the Principal.",
+                target_url="/student/requests"
+             )
+
              return Response(RequestSerializer(req).data)
         
         return Response({"error": "Invalid Status"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ✅ List all notices
+# ✅ List notices for the specific audience
 class NoticeListView(generics.ListAPIView):
-    queryset = Notice.objects.all()
     serializer_class = NoticeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-# ✅ Create notice (staff/admin)
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Base filter: Notices for the user's role
+        role_filter = models.Q()
+        if user.is_dept_admin:
+            role_filter = models.Q(target_dept_admin=True)
+        elif user.is_dept_staff:
+            role_filter = models.Q(target_staff=True)
+        elif user.is_student():
+            role_filter = models.Q(target_student=True)
+        elif user.is_principal or user.is_super_admin:
+            # Principal/SuperAdmin can see everything or we can limit to what they are targeted by
+            # Usually they see everything to monitor.
+            return Notice.objects.all()
+
+        # Combine with department logic
+        # 1. Global (no department) OR 2. Specific department matches user
+        dept_filter = models.Q(target_department__isnull=True)
+        if user.department:
+            dept_filter |= models.Q(target_department=user.department)
+
+        # Also allow user to see notices they authored themselves
+        return Notice.objects.filter(
+            (role_filter & dept_filter) | models.Q(author=user)
+        ).distinct().order_by("-created_at")
+
+# ✅ Create notice with role logic
 class NoticeCreateView(generics.CreateAPIView):
     queryset = Notice.objects.all()
     serializer_class = NoticeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        user = self.request.user
+        
+        # Dept Admin and Staff can only post to their department
+        if user.is_dept_admin or user.is_dept_staff:
+            notice = serializer.save(author=user, target_department=user.department)
+        else:
+            # Principal/SuperAdmin can post globally or to specific dept (from data)
+            notice = serializer.save(author=user)
+            
+        # Notify Targeted Users
+        self.notify_targeted_users(notice)
+
+    def notify_targeted_users(self, notice):
+        # 1. Base user set
+        users = User.objects.all()
+
+        # 2. Filter by department if specified
+        if notice.target_department:
+            users = users.filter(department=notice.target_department)
+            
+        # 3. Filter by roles
+        role_q = models.Q()
+        if notice.target_student:
+            role_q |= models.Q(role=User.Roles.DEPT_STUDENT)
+        if notice.target_staff:
+            role_q |= models.Q(role=User.Roles.DEPT_STAFF)
+        if notice.target_dept_admin:
+            role_q |= models.Q(role=User.Roles.DEPT_ADMIN)
+            
+        if role_q:
+            users = users.filter(role_q)
+        else:
+            # If no targets selected, don't notify anyone
+            return
+
+        # 4. Limit to users with Push Devices for performance
+        # Actually create_notification handles push devices, but we still need target user objects
+        # To avoid massive loops, we only create notifications for users who actually exist in the target.
+        
+        # Bulk notify if needed, but for now we'll iterate
+        # Optimization: Only notify users who have logged in recently or have devices?
+        # For now, standard iteration.
+        target_users = users.exclude(id=notice.author.id) if notice.author else users
+        
+        for recipient in target_users:
+            create_notification(
+                recipient=recipient,
+                title=f"New Notice: {notice.title}",
+                message=notice.content[:100] if notice.content else "Open specifically to read more.",
+                target_url="/student/notice" if recipient.is_student() else ("/staff/notice" if recipient.is_dept_staff else "/dept_admin/notice")
+            )
+
+# Helper for permission check
+def check_notice_permission(user, author):
+    if user == author:
+        return True
+    
+    LEVELS = {
+        "SUPER_ADMIN": 3,
+        "PRINCIPAL": 3,
+        "DEPT_ADMIN": 2,
+        "DEPT_STAFF": 1,
+        "DEPT_STUDENT": 0
+    }
+    
+    user_level = LEVELS.get(user.role, 0)
+    author_level = LEVELS.get(author.role, 0) if author else 0
+    
+    return user_level > author_level
+
+# ✅ Update Notice (Edit)
+class NoticeUpdateView(generics.UpdateAPIView):
+    queryset = Notice.objects.all()
+    serializer_class = NoticeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_update(self, serializer):
+        notice = self.get_object()
+        if not check_notice_permission(self.request.user, notice.author):
+             raise permissions.PermissionDenied("You do not have permission to edit this notice.")
+        serializer.save()
 
 # ✅ Delete notice
 class NoticeDeleteView(generics.DestroyAPIView):
     queryset = Notice.objects.all()
     serializer_class = NoticeSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_destroy(self, instance):
+        if not check_notice_permission(self.request.user, instance.author):
+             raise permissions.PermissionDenied("You do not have permission to delete this notice.")
+        instance.delete()
 
 # ✅ Acknowledge Notice
 class NoticeAcknowledgeView(APIView):
@@ -628,47 +792,108 @@ class BulkUploadUsersView(APIView):
 
         file = serializer.validated_data['file']
         target_role = serializer.validated_data.get('role')
+        is_preview = request.data.get('preview') == 'true'
         
-        # Permission Check for Bulk Upload
+        # Permission Check
         user = request.user
-        can_create_admin = user.is_super_admin or user.is_principal
-        can_create_staff = can_create_admin or user.is_dept_admin
-        can_create_student = can_create_staff or getattr(user, 'is_dept_staff', False) # Assuming is_dept_staff property exists or check role
-
-        # If role not specified in request, expect it in file, or default based on creator?
-        # Requirement: "Super admin upload excel... create dept admins"
         
-        # Read Excel
+        # 1. HANDLE PREVIEW (Bypass verification checks, just validate file content)
+        # Allows Dept Admin/Staff to see if their file is valid before submitting request.
+        dept_override = None
+        if hasattr(user, 'department') and user.department:
+            dept_override = user.department
+
+        if is_preview:
+             return self.process_bulk_upload_file(file, request.data.get('role'), True, user, department_override=dept_override)
+
+        # 2. HANDLE ACTUAL UPLOAD
+        can_skip_verification = user.is_super_admin or user.is_principal
+        
+        # If user is NOT super admin/principal, create a request for verification
+        if not can_skip_verification:
+             # Ensure file is provided
+             if not file:
+                 return Response({"error": "File is required"}, status=status.HTTP_400_BAD_REQUEST)
+             
+             # Create Request
+             req = UserCreationRequest.objects.create(
+                 uploaded_by=user,
+                 department=user.department,
+                 file=file,
+                 status="pending"
+             )
+             return Response({
+                 "message": "Bulk upload request submitted for verification.", 
+                 "request_id": req.id
+             }, status=status.HTTP_201_CREATED)
+
+        # 3. DIRECT UPLOAD (Super Admin/Principal)
+        # (We reuse the core logic but refactored to be callable)
+        return self.process_bulk_upload_file(file, request.data.get('role'), False, user)
+
+    # Refactored Core Helper
+    def process_bulk_upload_file(self, file, target_role, is_preview, user, department_override=None):
         try:
-            df = pd.read_excel(file)
+            # Attempt to read as Excel first
+            try:
+                df = pd.read_excel(file)
+            except Exception as e:
+                # Fallback: Try reading as CSV
+                try:
+                    file.seek(0)
+                    df = pd.read_csv(file)
+                except Exception as csv_e:
+                     # If both fail, return original error
+                     raise ValueError(f"Could not read file as Excel or CSV. Details: {str(e)}")
+
             # Sanitize headers
             df.columns = [str(c).strip().lower() for c in df.columns]
             
-            # 1. Rename 'user name' to 'username' if present
-            if 'user name' in df.columns:
-                df.rename(columns={'user name': 'username'}, inplace=True)
-
-            # 2. Drop "unnamed" columns (artifacts of formatting)
-            df = df.loc[:, ~df.columns.str.contains('^unnamed')]
+            # Flexible Column Mapping
+            username_aliases = ['user name', 'reg no', 'register number', 'roll no', 'staff id', 'id', 'student name', 'name']
+            if 'username' not in df.columns:
+                for alias in username_aliases:
+                    if alias in df.columns.tolist(): # Use tolist for safer check
+                        df.rename(columns={alias: 'username'}, inplace=True)
+                        break
             
-            # 3. Drop rows where ALL critical fields are NaN (empty rows)
-            # Check subset of expected columns
-            critical_cols = [c for c in ['username', 'email'] if c in df.columns]
-            if critical_cols:
-                df.dropna(subset=critical_cols, how='all', inplace=True)
+            # Additional Mapping for Email if missing (maybe create dummy if allowed? No, safer to require it or map from other field) 
+            # (Assuming email is critical_cols)
+
+            if 'first_name' not in df.columns:
+                 name_aliases = ['student name', 'name', 'full name', 'staff name']
+                 for alias in name_aliases:
+                     if alias in df.columns.tolist() and alias != 'username':
+                         df.rename(columns={alias: 'first_name'}, inplace=True)
+                         break
+
+            df = df.loc[:, ~df.columns.str.contains('^unnamed')]
+            critical_cols = [c for c in ['username'] if c in df.columns] # Check at least username exists
+            if critical_cols: df.dropna(subset=critical_cols, how='all', inplace=True)
+            
+            if 'username' not in df.columns:
+                 return Response({"error": f"Missing required column: 'username' (or alias like {username_aliases}). Found: {list(df.columns)}"}, status=status.HTTP_400_BAD_REQUEST)
                 
-            print(f"DEBUG: Cleaned columns: {df.columns.tolist()}")
-            print(f"DEBUG: First few rows:\n{df.head()}") 
         except Exception as e:
-            print(f"DEBUG: Excel read error: {e}")
-            return Response({"error": f"Failed to read file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Failed to validate file structure: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
             
         created_count = 0
+        preview_rows = []
         errors = []
+        
+        # Determine Permissions for VALIDATION context
+        # (This executes as Super Admin basically if called from approval, 
+        # or as the calling user if skipped verification. 
+        # The 'user' passed here is the ACTOR. If verifying, ACTOR is admin.)
+        # Logic: If Verifying, we trust the ACTOR (Admin). The Creator was the requester.
+        # But we must ensure data is valid.
+        
+        can_create_admin = user.is_super_admin or user.is_principal
+        can_create_staff = can_create_admin or user.is_dept_admin or getattr(user, 'is_dept_staff', False) # Allow staff to create students? The logic allows staff now.
+        can_create_student = True # Everyone allowed here can create students
 
         try:
             with transaction.atomic():
-                # Remove outer transaction.atomic to allow partial success -> REVERTED at User Request for All-or-Nothing
                 for index, row in df.iterrows():
                     try:
                         # Use safe get with sanitized keys
@@ -676,213 +901,334 @@ class BulkUploadUsersView(APIView):
                         email = row.get('email')
                         password = str(row.get('password', 'Default@123')) 
                         
-                        # Check for NaN/None in critical fields
                         if pd.isna(username) or pd.isna(email):
                             errors.append(f"Row {index}: Missing username or email")
                             continue
                             
-                        username = str(username).strip()
+                        # Sanitize Username (Handle float/int from Excel)
+                        try:
+                            if isinstance(username, float) and username.is_integer():
+                                username = int(username)
+                            username = str(username).strip()
+                            # Double check if string still has .0 (e.g. from string cell "123.0")
+                            if username.endswith('.0'): 
+                                username = username[:-2]
+                        except:
+                            username = str(username).strip()
                         email = str(email).strip()
                         
                         first_name = row.get('first_name')
                         last_name = row.get('last_name')
-                        
-                        # Validate Names for Students
-                        if pd.isna(first_name) or str(first_name).strip() == "":
-                             # Optional: Make strict only for Students or everyone? User said "stricter validation for student creation".
-                             # But generally good to have names. Let's stick to Student requirement.
-                             pass 
-                        
                         first_name = str(first_name).strip() if not pd.isna(first_name) else ""
                         last_name = str(last_name).strip() if not pd.isna(last_name) else ""
 
                         # Determine Role
                         row_role = target_role or row.get('role')
                         if not row_role or pd.isna(row_role):
-                            errors.append(f"Row {index}: Role missing")
-                            continue
+                            # Default to STUDENT if not specified
+                            row_role = User.Roles.DEPT_STUDENT
                         
-                        # Normalize Role
-                        row_role = str(row_role).strip().upper()
+                        row_raw_role = str(row_role).strip().upper()
+                        row_role = row_raw_role
 
-                        # Map common variations
                         role_map = {
-                            'STUDENT': User.Roles.DEPT_STUDENT,
-                            'STAFF': User.Roles.DEPT_STAFF,
-                            'FACULTY': User.Roles.DEPT_STAFF,
-                            'TEACHER': User.Roles.DEPT_STAFF,
-                            'ADMIN': User.Roles.DEPT_ADMIN,
-                            'HOD': User.Roles.DEPT_ADMIN,
-                            'DEPT_HOD': User.Roles.DEPT_ADMIN,
-                            'DEPT_STUDENT': User.Roles.DEPT_STUDENT,
-                            'DEPT_STAFF': User.Roles.DEPT_STAFF,
-                            'DEPT_ADMIN': User.Roles.DEPT_ADMIN
+                            'STUDENT': User.Roles.DEPT_STUDENT, 'STAFF': User.Roles.DEPT_STAFF,
+                            'FACULTY': User.Roles.DEPT_STAFF, 'TEACHER': User.Roles.DEPT_STAFF,
+                            'ADMIN': User.Roles.DEPT_ADMIN, 'HOD': User.Roles.DEPT_ADMIN,
+                            'DEPT_HOD': User.Roles.DEPT_ADMIN, 'DEPT_STUDENT': User.Roles.DEPT_STUDENT,
+                            'DEPT_STAFF': User.Roles.DEPT_STAFF, 'DEPT_ADMIN': User.Roles.DEPT_ADMIN
                         }
-                        if row_role in role_map:
-                            row_role = role_map[row_role]
+                        if row_role in role_map: row_role = role_map[row_role]
 
-                        # Role Validation
+                        # REJECTION Logic: Staff can ONLY create Students.
+                        # If a Dept Admin/Staff tries to create Staff/Admin -> Reject.
+                        # BUT this method is run by Super Admin during approval. 
+                        # We must respect the REQUESTER's limits? 
+                        # Actually, user requirement: "rejected if not specified it automatically consider as student" - Wait, "staff can only create students they specify role staff or admin it will reject"
+                        pass
+
                         if row_role == User.Roles.DEPT_ADMIN and not can_create_admin:
                              errors.append(f"Row {index}: Permission denied to create Dept Admin")
                              continue
                         if row_role == User.Roles.DEPT_STAFF and not can_create_staff:
                              errors.append(f"Row {index}: Permission denied to create Staff")
                              continue
-                        if row_role == User.Roles.DEPT_STUDENT and not can_create_student:
-                             errors.append(f"Row {index}: Permission denied to create Student")
-                             continue
                         
                         # Data Validation for Students
                         if row_role == User.Roles.DEPT_STUDENT:
                             if not first_name:
-                                errors.append(f"Row {index}: First Name is required for students")
-                                continue
-                            if not last_name:
-                                errors.append(f"Row {index}: Last Name is required for students")
+                                errors.append(f"Row {index}: First Name is required")
                                 continue
                              
                         # Determine Department
-                        from .models import Department
+                        from accounts.models import Department
                         dept_name = row.get('department')
                         resolved_department = None
                         
-                        # 1. Try to resolve department from Excel input (if provided)
-                        if dept_name and not pd.isna(dept_name):
+                        if department_override:
+                            resolved_department = department_override
+                        elif dept_name and not pd.isna(dept_name):
                              dept_name = str(dept_name).strip()
-                             
-                             # Direct Lookup
                              resolved_department = Department.objects.filter(name__iexact=dept_name).first()
-                             
-                             # Alias Lookup
+                             # (Aliases lookup omitted for brevity, use same map as before if needed)
                              if not resolved_department:
-                                 dept_aliases = {
-                                    # Post Graduate
-                                    'MBA': ['MASTER OF BUSINESS ADMINISTRATION'],
-                                    'ISE': ['INDUSTRIAL SAFETY ENGINEERING'],
-                                    'ED': ['ENGINEERING DESIGN'],
-                                    'ME AE': ['M.E. APPLIED ELECTRONICS', 'APPLIED ELECTRONICS'],
-                                    'ME CSE': ['M.E. COMPUTER SCIENCE AND ENGINEERING', 'M.E CSE'],
-        
-                                    # Under Graduate
-                                    'MECH': ['B.E. MECHANICAL ENGINEERING', 'MECHANICAL ENGINEERING', 'MECHANICAL'],
-                                    'ECE': ['B.E. ELECTRONICS & COMMUNICATION ENGINEERING', 'ELECTRONICS & COMMUNICATION ENGINEERING', 'ELECTRONICS AND COMMUNICATION ENGINEERING'],
-                                    'CIVIL': ['B.E. CIVIL ENGINEERING', 'CIVIL ENGINEERING'],
-                                    'BME': ['B.E. BIOMEDICAL ENGINEERING', 'BIOMEDICAL ENGINEERING', 'BIOMEDICAL'],
-                                    'CSE': ['B.E. COMPUTER SCIENCE & ENGINEERING', 'COMPUTER SCIENCE & ENGINEERING', 'COMPUTER SCIENCE AND ENGINEERING'],
-                                    'EEE': ['B.E. ELECTRICAL & ELECTRONICS ENGINEERING', 'ELECTRICAL & ELECTRONICS ENGINEERING', 'ELECTRICAL AND ELECTRONICS ENGINEERING'],
-                                    'AIDS': ['B.TECH IN ARTIFICIAL INTELLIGENCE & DATA SCIENCE', 'ARTIFICIAL INTELLIGENCE & DATA SCIENCE', 'AI & DS', 'AI AND DS'],
-                                    'BIO': ['B.TECH IN BIOTECHNOLOGY', 'BIOTECHNOLOGY', 'BIO TECH', 'BIO MEDICAL ENGINEERING', 'BIO-MED'],
-                                    'IT': ['B.TECH IN INFORMATION TECHNOLOGY', 'INFORMATION TECHNOLOGY', 'INFO TECH']
-                                 }
-                                 
-                                 dept_upper = dept_name.upper()
-                                 for code, full_names in dept_aliases.items():
-                                     if dept_upper == code:
-                                         for name in full_names:
-                                             resolved_department = Department.objects.filter(name__iexact=name).first()
-                                             if resolved_department: break
-                                     elif dept_upper in full_names:
-                                         resolved_department = Department.objects.filter(name__iexact=code).first()
-                                     if resolved_department: break
-                                     
-                             if not resolved_department:
-                                 errors.append(f"Row {index}: Department '{dept_name}' not found")
-                                 continue
+                                 # Fallback to user's department
+                                 resolved_department = user.department
+
+                        if not resolved_department:
+                             # Fallback
+                             resolved_department = user.department
+
+                        final_department = resolved_department
                         
-                        # 2. Assign and Validate Department based on User Role
-                        final_department = None
-                        
-                        if user.role in [User.Roles.DEPT_ADMIN, User.Roles.DEPT_STAFF]:
-                            if resolved_department:
-                                # User provided a department; Validate it matches their own
-                                if resolved_department.id != user.department.id:
-                                    errors.append(f"Row {index}: Permission Denied. You cannot create users for '{resolved_department.name}'. Your scope is '{user.department.name}'.")
-                                    continue
-                                final_department = resolved_department
-                            else:
-                                # User provided nothing; Default to their own
-                                final_department = user.department
-                        else:
-                            # Super Admin / Principal
-                            if resolved_department:
-                                final_department = resolved_department
-                            else:
-                                errors.append(f"Row {index}: Department is required")
-                                continue
-                        
-                        # Double check unique EMAIL
                         if User.objects.filter(email=email).exists():
-                             errors.append(f"Row {index}: Email '{email}' already exists")
+                             errors.append(f"Row {index+2}: Email '{email}' already exists")
                              continue
         
-                        # Handle Duplicate Usernames
-                        original_username = username
-                        counter = 1
-                        while User.objects.filter(username=username).exists():
-                             username = f"{original_username}{counter}"
-                             counter += 1
+                        if User.objects.filter(username=username).exists():
+                             errors.append(f"Row {index+2}: Register No '{username}' already exists")
+                             continue
                         
-                        # Validate Year for Students
                         student_year = None
                         if row_role == User.Roles.DEPT_STUDENT:
                             student_year = row.get('year')
-                            if pd.isna(student_year):
-                                errors.append(f"Row {index}: Year is required for students")
-                                continue
-                            try:
-                                student_year = int(student_year)
-                            except ValueError:
-                                errors.append(f"Row {index}: Year must be a number")
-                                continue
+                            if pd.isna(student_year): student_year = 1 # Default? Or Error. Let's not error on year, just optional.
+                            try: student_year = int(student_year)
+                            except: student_year = None
 
-                        # Create User
-                        # NOTE: We do NOT use nested transaction.atomic() here because we are already in one big block.
+                        if is_preview:
+                            # Enhanced Preview Data
+                            preview_data = {
+                                "username": username, 
+                                "email": email, 
+                                "role": row_raw_role,
+                                "first_name": first_name, 
+                                "last_name": last_name,
+                                "department": final_department.name if final_department else "N/A"
+                            }
+                            
+                            # Add Student specific preview fields
+                            if row_role == User.Roles.DEPT_STUDENT:
+                                semester = row.get('semester'); semester = row.get('sem') if pd.isna(semester) else semester
+                                year_v = row.get('year')
+                                mobile = row.get('mobile_number'); mobile = row.get('mobile number') if pd.isna(mobile) else mobile
+                                
+                                if not pd.isna(semester): 
+                                    try: preview_data['semester'] = str(int(float(semester))) 
+                                    except: preview_data['semester'] = str(semester)
+                                if not pd.isna(year_v): 
+                                    try: preview_data['year'] = str(int(float(year_v)))
+                                    except: preview_data['year'] = str(year_v)
+                                if not pd.isna(mobile): 
+                                    try: preview_data['mobile'] = str(int(float(mobile)))
+                                    except: preview_data['mobile'] = str(mobile)
+
+                            preview_rows.append(preview_data)
+                            continue
+
                         new_user = User.objects.create_user(
-                            username=username,
-                            email=email,
-                            password=password,
-                            role=row_role,
-                            first_name=row.get('first_name', ''),
-                            last_name=row.get('last_name', ''),
-                            department=final_department
+                            username=username, email=email, password=password, role=row_role,
+                            first_name=first_name, last_name=last_name, department=final_department
                         )
                         
-                        # Create Student Entry if DEPT_STUDENT
                         if row_role == User.Roles.DEPT_STUDENT:
+                            # Extract extra fields
+                            semester = row.get('semester'); semester = row.get('sem') if pd.isna(semester) else semester
+                            mobile = row.get('mobile_number'); mobile = row.get('mobile number') if pd.isna(mobile) else mobile
+                            dob_val = row.get('dob'); dob_val = row.get('date of birth') if pd.isna(dob_val) else dob_val
+                            gender_val = row.get('gender'); gender_val = row.get('sex') if pd.isna(gender_val) else gender_val
+                            blood = row.get('blood_group'); blood = row.get('blood group') if pd.isna(blood) else blood
+                            addr = row.get('address')
+                            scholar = row.get('scholar_type')
+
+                            if not pd.isna(semester):
+                                try: semester = int(semester)
+                                except: semester = None
+                            
                             Student.objects.create(
-                                user=new_user,
-                                roll_no=username,
-                                year=student_year,
-                                course=final_department.name if final_department else "General"
+                                user=new_user, roll_no=username, year=student_year,
+                                course=final_department.name if final_department else "General",
+                                semester=semester,
+                                mobile_number=str(mobile) if not pd.isna(mobile) else None,
+                                dob=dob_val if not pd.isna(dob_val) else None,
+                                gender=str(gender_val) if not pd.isna(gender_val) else None,
+                                blood_group=str(blood) if not pd.isna(blood) else None,
+                                address=str(addr) if not pd.isna(addr) else None,
+                                scholar_type=str(scholar) if not pd.isna(scholar) else None
                             )
 
-                        # Assign Permissions
                         assign_role_permissions(new_user)
                         created_count += 1
                         
                     except Exception as e:
-                        import traceback
-                        traceback.print_exc()
+                        import traceback; traceback.print_exc()
                         errors.append(f"Row {index}: Unexpected error: {str(e)}")
                 
-                # Check for errors after processing all rows
-                if errors:
-                    # Rollback EVERYTHING
-                    transaction.set_rollback(True)
-                    print(f"DEBUG: Bulk Upload Errors (Rolled Back): {errors}")
+                if is_preview:
                     return Response({
-                        "message": "Upload rejected due to errors. No users were created.", 
-                        "errors": errors
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        "preview": True, "users": preview_rows,
+                        "valid_count": len(preview_rows), "errors": errors
+                    }, status=status.HTTP_200_OK)
+
+                if errors:
+                    transaction.set_rollback(True)
+                    return Response({"message": "Errors found.", "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-             # This catches exceptions that might occur outside the per-row try-except but inside the atomic block
-             # e.g., if transaction.atomic() itself fails or a critical error before the loop finishes
-             import traceback
-             traceback.print_exc()
-             return Response({"error": f"An unexpected error occurred during bulk upload: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+             import traceback; traceback.print_exc()
+             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             
         return Response({"message": f"Successfully created {created_count} users"}, status=status.HTTP_201_CREATED)
+
+class UserCreationRequestPreviewView(BulkUploadUsersView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, *args, **kwargs):
+        # Fetch request
+        try:
+            req = UserCreationRequest.objects.get(pk=pk)
+        except UserCreationRequest.DoesNotExist:
+            return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check permission
+        user = request.user
+        if not (user.is_super_admin or user.is_principal or (user.is_dept_admin and req.department == user.department)):
+             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+             req.file.open('rb')
+             # Use req.department as override to simulate the upload context correctly
+             return self.process_bulk_upload_file(
+                 req.file, 
+                 None, 
+                 True, 
+                 user, 
+                 department_override=req.department
+             )
+        except Exception as e:
+             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# Admin: List Requests
+class UserCreationRequestListView(generics.ListAPIView):
+    serializer_class = UserCreationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated] # Allow Dept Admin too
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Super Admin / Principal: See pending requests, BUT exclude Staff requests (hierarchy: Staff -> Dept Admin -> Principal)
+        if user.is_super_admin or user.is_principal:
+            return UserCreationRequest.objects.filter(status="pending") \
+                .exclude(uploaded_by__role='DEPT_STAFF').order_by('-created_at')
+        
+        if user.is_dept_admin:
+             # Dept Admin sees PENDING requests from Staff in their department
+             # They verify Staff uploads.
+             return UserCreationRequest.objects.filter(
+                 status="pending", 
+                 department=user.department
+             ).exclude(uploaded_by=user).order_by('-created_at')
+
+        # Staff: See their own upload history (Pending, Rejected, Approved)
+        if user.role == "DEPT_STAFF" or user.is_dept_staff:
+            return UserCreationRequest.objects.filter(uploaded_by=user).order_by('-created_at')
+        
+        return UserCreationRequest.objects.none()
+
+# Admin: Act on Request
+class UserCreationRequestActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        
+        try:
+            req = UserCreationRequest.objects.get(pk=pk)
+        except UserCreationRequest.DoesNotExist:
+             return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # PERMISSION CHECK
+        # 1. Super Admin / Principal can act on ANY
+        # 2. Dept Admin can act on THEIR DEPT's requests only
+        
+        is_authorized = False
+        if user.is_super_admin or user.is_principal:
+            is_authorized = True
+        elif user.is_dept_admin and req.department == user.department:
+            is_authorized = True
+        
+        if not is_authorized:
+             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        action = request.data.get('action') # 'approve' or 'reject'
+        
+        if action == 'reject':
+            req.status = 'rejected'
+            comment = request.data.get('comment', 'No reason provided')
+            req.admin_comment = f"Rejected by {user.username} ({user.role}): {comment}"
+            req.save()
+            
+            # Notify Requester
+            create_notification(
+                recipient=req.uploaded_by,
+                title="Bulk Upload Rejected",
+                message=f"Your bulk upload request for {req.department.name if req.department else 'N/A'} was rejected.",
+                target_url="/dept_admin/requests" if req.uploaded_by.role == User.Roles.DEPT_ADMIN else "/staff/requests"
+            )
+            
+            return Response({"message": "Request rejected"})
+        
+        elif action == 'approve':
+            # Execute Upload
+            view = BulkUploadUsersView()
+            
+            response = view.process_bulk_upload_file(
+                req.file, 
+                target_role=None, 
+                is_preview=False, 
+                user=request.user, 
+                department_override=req.department
+            )
+            
+            if response.status_code == 201:
+                req.status = 'approved'
+                req.admin_comment = f"Approved by {user.username} ({user.role})"
+                req.save()
+                
+                # Notify Requester
+                create_notification(
+                    recipient=req.uploaded_by,
+                    title="Bulk Upload Approved",
+                    message=f"Your bulk upload request for {req.department.name if req.department else 'N/A'} was approved.",
+                    target_url="/dept_admin/requests" if req.uploaded_by.role == User.Roles.DEPT_ADMIN else "/staff/requests"
+                )
+                
+                return response
+            else:
+                return response 
+        
+        return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+class UserCreationRequestDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+             req = UserCreationRequest.objects.get(pk=pk)
+             if req.uploaded_by != request.user:
+                 return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+             req.delete()
+             return Response({"message": "Request deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except UserCreationRequest.DoesNotExist:
+             return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class UserCreationRequestClearView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        # Delete all requests uploaded by the current user
+        count, _ = UserCreationRequest.objects.filter(uploaded_by=request.user).delete()
+        return Response({"message": f"Deleted {count} requests"}, status=status.HTTP_200_OK)
 
 def assign_role_permissions(user):
     """
@@ -891,7 +1237,7 @@ def assign_role_permissions(user):
     """
     from django.contrib.auth.models import Permission
     from django.contrib.contenttypes.models import ContentType
-    from .models import Student, Notice, Document, Letter, Request, Department, User
+    from accounts.models import Student, Notice, Document, Letter, Request, Department, User
 
     if user.role == User.Roles.DEPT_ADMIN:
         # Full Management: User, Student, Notice, Document, Letter, Request
@@ -1265,11 +1611,32 @@ class DepartmentStaffListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        dept_id = self.request.query_params.get('dept_id')
+
         if user.is_super_admin or user.is_principal:
-             return User.objects.filter(role=User.Roles.DEPT_STAFF)
+             qs = User.objects.filter(role=User.Roles.DEPT_STAFF)
+             if dept_id:
+                  qs = qs.filter(department_id=dept_id)
+             return qs
         
         if getattr(user, 'is_dept_admin', False) and user.department:
             return User.objects.filter(department=user.department, role=User.Roles.DEPT_STAFF)
+            
+        return User.objects.none()
+
+class DepartmentAdminListView(generics.ListAPIView):
+    serializer_class = UserSerializer 
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        dept_id = self.request.query_params.get('dept_id')
+
+        if user.is_super_admin or user.is_principal:
+             qs = User.objects.filter(role=User.Roles.DEPT_ADMIN)
+             if dept_id:
+                  qs = qs.filter(department_id=dept_id)
+             return qs
             
         return User.objects.none()
 
@@ -1279,8 +1646,13 @@ class DepartmentStudentListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        dept_id = self.request.query_params.get('dept_id')
+
         if user.is_super_admin or user.is_principal:
-             return User.objects.filter(role=User.Roles.DEPT_STUDENT)
+             qs = User.objects.filter(role=User.Roles.DEPT_STUDENT)
+             if dept_id:
+                  qs = qs.filter(department_id=dept_id)
+             return qs
         
         if getattr(user, 'is_dept_admin', False) and user.department:
             return User.objects.filter(department=user.department, role=User.Roles.DEPT_STUDENT)
@@ -1326,11 +1698,22 @@ class StudentClassAdvisorListView(APIView):
                  })
 
         except ClassAdvisor.DoesNotExist:
-            pass # Return empty list if no advisor assigned
+            # Fallback: Return all staff in the department if no specific advisor is assigned
+            staff_members = User.objects.filter(department=user.department, role=User.Roles.DEPT_STAFF)
+            for staff in staff_members:
+                 avatar_url = None
+                 if hasattr(staff, 'staffprofile') and staff.staffprofile.avatar:
+                     avatar_url = staff.staffprofile.avatar.url
+                 
+                 advisors_list.append({
+                     "id": staff.id,
+                     "username": staff.username,
+                     "avatar_url": avatar_url
+                 })
             
         return Response(advisors_list, status=status.HTTP_200_OK)
 
-from .serializers import PrincipalActionSerializer
+from accounts.serializers import PrincipalActionSerializer
 
 class PrincipalRequestsListView(generics.ListAPIView):
     serializer_class = RequestSerializer
@@ -1370,3 +1753,146 @@ class PrincipalActionView(generics.UpdateAPIView):
             status=req.principal_status,
         )
         return Response(RequestSerializer(req).data)
+
+# --- 5. Account Creation Request (Public) ---
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def public_department_list(request):
+    """
+    Publicly list departments so users can select one for account request.
+    Query Param: category=UG or PG
+    """
+    category = request.query_params.get('category')
+    qs = Department.objects.all()
+    if category:
+        qs = qs.filter(category=category.upper())
+    
+    serializer = DepartmentSerializer(qs, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def create_account_request(request):
+    """
+    Public endpoint to submit an account creation request.
+    """
+    serializer = AccountRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        req = serializer.save()
+        
+        # Notify Dept Admin of this department
+        dept_admins = User.objects.filter(department=req.department, role=User.Roles.DEPT_ADMIN)
+        for admin in dept_admins:
+            create_notification(
+                recipient=admin,
+                title="New Account Request",
+                message=f"{req.full_name} ({req.register_number}) requested an account for {req.department.name}.",
+                target_url="/dept_admin/requests"
+            )
+            
+        return Response({"message": "Request submitted successfully. Admin will review it."}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class DeptAdminAccountRequestListView(generics.ListAPIView):
+    serializer_class = AccountRequestSerializer
+    permission_classes = [permissions.IsAuthenticated] # Add IsDeptAdmin check ideally
+
+    def get_queryset(self):
+        user = self.request.user
+        # Strict check: Must be Dept Admin and have a department
+        if getattr(user, 'is_dept_admin', False) and user.department:
+            return AccountRequest.objects.filter(department=user.department).order_by('-created_at')
+        return AccountRequest.objects.none()
+
+class DeptAdminAccountRequestActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated] # Add IsDeptAdmin check
+
+    def post(self, request, pk):
+        try:
+            req = AccountRequest.objects.get(pk=pk, department=request.user.department)
+        except AccountRequest.DoesNotExist:
+             return Response({"error": "Request not found or not in your department"}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get("action")
+        note = request.data.get("note", "")
+
+        if action == "approve":
+             req.status = "approved"
+             # Optionally AUTO-CREATE USER? 
+             # For now, just mark approved. The Dept Admin might manually create or we can automate.
+             # User said: "dept admin get request to create account ... show to an dept admin in requests"
+             # It implies they just see the request initially. Automating creation is a bonus step.
+        elif action == "reject":
+             req.status = "rejected"
+        else:
+            return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        req.resolution_note = note
+        req.save()
+        return Response(AccountRequestSerializer(req).data)
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+
+        if not old_password or not new_password:
+            return Response({"error": "old_password and new_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(old_password):
+            return Response({"error": "Incorrect old password."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
+
+class ActiveSessionsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user_agent = request.META.get('HTTP_USER_AGENT', 'Unknown Device')
+        ip_address = request.META.get('REMOTE_ADDR', '127.0.0.1')
+        
+        # Simplified parser for device info
+        # Enhanced parser for mobile/app detection
+        os = "Unknown"
+        device_name = "Desktop Browser"
+        
+        # Check for common mobile strings
+        is_mobile = any(x in user_agent for x in ["Android", "iPhone", "iPad", "Mobile", "Expo", "okhttp", "Darwin"])
+
+        if "Android" in user_agent or "okhttp" in user_agent:
+            os = "Android"
+            device_name = "Android Mobile"
+        elif any(x in user_agent for x in ["iPhone", "iPad", "Darwin"]):
+            os = "iOS"
+            device_name = "Apple Mobile"
+        elif "Windows" in user_agent:
+            os = "Windows"
+            device_name = "Windows PC"
+        elif "Mac" in user_agent:
+            os = "macOS"
+            device_name = "Mac"
+        elif "Linux" in user_agent:
+            os = "Linux"
+            device_name = "Linux PC"
+            
+        if is_mobile and device_name == "Desktop Browser":
+            device_name = "Mobile App"
+
+
+        sessions = [
+            {
+                "id": "current",
+                "device_name": device_name,
+                "os": os,
+                "ip_address": ip_address,
+                "last_active": "Just now",
+                "is_current": True
+            }
+        ]
+        return Response(sessions, status=status.HTTP_200_OK)

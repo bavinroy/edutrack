@@ -10,35 +10,41 @@ import {
   Image,
   TextInput,
   SafeAreaView,
+  StatusBar,
+  ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter, usePathname } from "expo-router";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import { useTheme } from "../../context/ThemeContext";
 
 type Letter = { id: number; title: string; content: string; created_at: string };
 type Staff = { id: number; username: string; avatar_url?: string };
-type Request = { id: number; letter: Letter; staff_status: string; admin_status: string; created_at: string };
+type Request = { 
+    id: number; 
+    letter: Letter; 
+    staff_status: string; 
+    admin_status: string; 
+    principal_status: string;
+    created_at: string 
+};
 
 export default function RequestsScreen() {
   const router = useRouter();
-  const pathname = usePathname();
+  const { isDark, theme: themeColors } = useTheme();
   const [letters, setLetters] = useState<Letter[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"letters" | "requests">("letters");
+  const [activeTab, setActiveTab] = useState<"letters" | "tracking">("letters");
   const [filterText, setFilterText] = useState("");
-  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
-  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
-  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      if (!token) return;
       const [lettersRes, requestsRes, staffRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/letters/`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/api/request/student/`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -47,208 +53,164 @@ export default function RequestsScreen() {
       setLetters(await lettersRes.json());
       setRequests(await requestsRes.json());
       setStaff(await staffRes.json());
-    } catch (err) { console.error(err); Alert.alert("Error", "Failed to load data"); }
+    } catch (err) { }
     finally { setLoading(false); }
   };
 
   const sendRequest = async (letterId: number, staffId: number) => {
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      if (!token) return;
       const res = await fetch(`${API_BASE_URL}/api/request/create/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ letter: letterId, staff: staffId }),
       });
-      if (res.ok) { Alert.alert("✅ Success", "Request sent successfully!"); loadData(); }
-      else { Alert.alert("❌ Error", "Failed to send request"); }
-    } catch (err) { console.error(err); Alert.alert("Error", "Something went wrong"); }
+      if (res.ok) { Alert.alert("Success", "Request sent successfully!"); loadData(); }
+      else { Alert.alert("Error", "Failed to send request"); }
+    } catch (err) { }
   };
 
-  const handleNav = (path: string) => { router.push(path as any); };
+  const filteredLetters = letters.filter(l => l.title.toLowerCase().includes(filterText.toLowerCase()));
 
-  const filteredLetters = letters.filter(l =>
-    l.title.toLowerCase().includes(filterText.toLowerCase())
-  );
-
-  const filteredStaff = selectedStaffId ? staff.filter(s => s.id === selectedStaffId) : staff;
-
-  const renderStaffForLetter = (letterId: number) => (
-    <FlatList
-      horizontal
-      data={filteredStaff}
-      keyExtractor={(item) => item.id.toString()}
-      showsHorizontalScrollIndicator={false}
-      renderItem={({ item }) => (
-        <View style={styles.staffCard}>
-          {item.avatar_url ? <Image source={{ uri: item.avatar_url }} style={styles.avatar} /> : <View style={[styles.avatar, { backgroundColor: "#ccc" }]} />}
-          <Text style={styles.name}>{item.username}</Text>
-          <TouchableOpacity style={styles.staffButton} onPress={() => sendRequest(letterId, item.id)}>
-            <Text style={styles.staffButtonText}>Send</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    />
-  );
-
-  const renderLetter = ({ item }: { item: Letter }) => (
-    <View style={styles.card}>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.content}>{item.content}</Text>
-      <Text style={styles.subHeading}>Select Staff:</Text>
-      {renderStaffForLetter(item.id)}
-    </View>
-  );
-
-  type Request = {
-    id: number;
-    letter: Letter;
-    staff_status: string;
-    admin_status: string;
-    principal_status: string;
-    created_at: string
-  };
-
-  // ... inside component ...
-
-  const renderRequest = ({ item }: { item: Request }) => {
-    const staffStatus = item.staff_status ?? "pending";
-    const adminStatus = item.admin_status ?? "pending";
-    const principalStatus = item.principal_status ?? "pending";
-
-    // Logic: 0 = pending, 0.33 = staff approved, 0.66 = admin approved, 1 = principal approved
-    // If Admin finalizes (principal auto-approved), it jumps to 1.
-    // Ideally backend sets principal_status="approved" if admin finalizes.
-
-    let progress = 0;
-    let statusText = "Pending";
-
-    if (staffStatus === "approved") {
-      progress = 0.33;
-      statusText = "Staff Approved";
-      if (adminStatus === "approved") {
-        progress = 0.66;
-        statusText = "Admin Approved";
-        if (principalStatus === "approved") {
-          progress = 1;
-          statusText = "Fully Approved";
-        } else if (principalStatus === "rejected") {
-          progress = 0.66; // Stalled at admin
-          statusText = "Rejected by Principal";
-        }
-      } else if (adminStatus === "rejected") {
-        statusText = "Rejected by Admin";
+  const getStatusMeta = (status: string) => {
+      switch(status?.toLowerCase()) {
+          case 'approved': return { icon: 'checkmark-circle', color: '#10B981', label: 'APPROVED' };
+          case 'rejected': return { icon: 'close-circle', color: '#EF4444', label: 'REJECTED' };
+          default: return { icon: 'time-outline', color: '#F59E0B', label: 'PENDING' };
       }
-    } else if (staffStatus === "rejected") {
-      statusText = "Rejected by Staff";
-    }
+  };
 
-    const statusColor = (status: string) => status === "approved" ? "green" : status === "rejected" ? "red" : "#ffa500";
-
+  const renderProgress = (item: Request) => {
+    const s = getStatusMeta(item.staff_status);
+    const a = getStatusMeta(item.admin_status);
+    const p = getStatusMeta(item.principal_status);
+    
     return (
-      <View style={styles.requestCard}>
-        <Text style={styles.title}>📄 {item.letter.title}</Text>
-        <View style={styles.statusRow}><Text>Staff:</Text><Text style={{ color: statusColor(staffStatus), fontWeight: "bold" }}>{staffStatus === "approved" ? "✅ Approved" : staffStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
-        <View style={styles.statusRow}><Text>Admin:</Text><Text style={{ color: statusColor(adminStatus), fontWeight: "bold" }}>{adminStatus === "approved" ? "✅ Approved" : adminStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
-        <View style={styles.statusRow}><Text>Principal:</Text><Text style={{ color: statusColor(principalStatus), fontWeight: "bold" }}>{principalStatus === "approved" ? "✅ Approved" : principalStatus === "rejected" ? "❌ Rejected" : "⏳ Pending"}</Text></View>
-
-        <View style={styles.progressBarBackground}><View style={[styles.progressBarFill, { flex: progress }]} /><View style={{ flex: 1 - progress }} /></View>
-        <Text style={styles.progressText}>{statusText}</Text>
-      </View>
+        <View style={[styles.trackCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <Text style={[styles.trackTitle, { color: themeColors.text }]}>{item.letter.title}</Text>
+            <View style={styles.stepsContainer}>
+                <View style={styles.step}>
+                    <Ionicons name={s.icon as any} size={20} color={s.color} />
+                    <Text style={[styles.stepLabel, { color: s.color }]}>STAFF</Text>
+                </View>
+                <View style={[styles.stepConnector, { backgroundColor: themeColors.border }]} />
+                <View style={styles.step}>
+                    <Ionicons name={a.icon as any} size={20} color={a.color} />
+                    <Text style={[styles.stepLabel, { color: a.color }]}>ADMIN</Text>
+                </View>
+                <View style={[styles.stepConnector, { backgroundColor: themeColors.border }]} />
+                <View style={styles.step}>
+                    <Ionicons name={p.icon as any} size={20} color={p.color} />
+                    <Text style={[styles.stepLabel, { color: p.color }]}>EXEC</Text>
+                </View>
+            </View>
+            <Text style={[styles.trackDate, { color: themeColors.subText }]}>Requested on {new Date(item.created_at).toLocaleDateString()}</Text>
+        </View>
     );
   };
 
-  if (loading) return (<View style={styles.center}><ActivityIndicator size="large" color="#30e4de" /></View>);
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* 🔹 Header Dropdown */}
-      <TouchableOpacity style={styles.header} onPress={() => setShowHeaderMenu(!showHeaderMenu)}>
-        <Ionicons name="arrow-back" size={22} color="#30e4de" />
-        <Text style={styles.headerTitle}>Requests</Text>
-        <Ionicons name={showHeaderMenu ? "chevron-up" : "chevron-down"} size={22} color="#30e4de" />
-      </TouchableOpacity>
-
-      {showHeaderMenu && (
-        <View style={styles.menuBox}>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => handleNav("/student/downloads")}><Ionicons name="download-outline" size={18} color="#fff" /><Text style={styles.menuText}>Downloads</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => handleNav("/student/letter")}><Ionicons name="document-text-outline" size={18} color="#fff" /><Text style={styles.menuText}>Forms</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => handleNav("/student/time table")}><Ionicons name="calendar-outline" size={18} color="#fff" /><Text style={styles.menuText}>Time Table</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => handleNav("/student/results")}><Ionicons name="ribbon-outline" size={18} color="#fff" /><Text style={styles.menuText}>Results</Text></TouchableOpacity>
-
-          {/* Nested Staff Dropdown */}
-          <TouchableOpacity style={[styles.menuBtn, { backgroundColor: "#007BFF" }]} onPress={() => setShowStaffDropdown(!showStaffDropdown)}>
-            <Ionicons name="people-outline" size={18} color="#fff" />
-            <Text style={styles.menuText}>{selectedStaffId ? staff.find(s => s.id === selectedStaffId)?.username : "Filter by Staff"}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+        <View style={[styles.header, { backgroundColor: themeColors.headerBg }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
-          {showStaffDropdown && staff.map(s => (
-            <TouchableOpacity key={s.id} style={[styles.menuBtn, { backgroundColor: "#30e4de" }]} onPress={() => { setSelectedStaffId(s.id); setShowStaffDropdown(false); }}>
-              <Text style={styles.menuText}>{s.username}</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={[styles.menuBtn, { backgroundColor: "#30e4de" }]} onPress={() => { setSelectedStaffId(null); setShowStaffDropdown(false); }}>
-            <Text style={styles.menuText}>All Staff</Text>
-          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: themeColors.text }]}>Request Hub</Text>
+          <View style={{ width: 40 }} />
         </View>
-      )}
 
-      {/* 🔹 Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tabButton, activeTab === "letters" && styles.activeTab]} onPress={() => setActiveTab("letters")}><Text style={[styles.tabText, activeTab === "letters" && styles.activeTabText]}>Letters</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.tabButton, activeTab === "requests" && styles.activeTab]} onPress={() => setActiveTab("requests")}><Text style={[styles.tabText, activeTab === "requests" && styles.activeTabText]}>Requests & Tracking</Text></TouchableOpacity>
-      </View>
+        <View style={styles.tabBar}>
+            <TouchableOpacity style={[styles.tab, { backgroundColor: themeColors.card, borderColor: themeColors.border }, activeTab === "letters" && { backgroundColor: isDark ? '#3B82F6' : '#111827', borderColor: isDark ? '#3B82F6' : '#111827' }]} onPress={() => setActiveTab("letters")}>
+                <Text style={[styles.tabText, { color: themeColors.subText }, activeTab === "letters" && { color: '#ffffff' }]}>Drafts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tab, { backgroundColor: themeColors.card, borderColor: themeColors.border }, activeTab === "tracking" && { backgroundColor: isDark ? '#3B82F6' : '#111827', borderColor: isDark ? '#3B82F6' : '#111827' }]} onPress={() => setActiveTab("tracking")}>
+                <Text style={[styles.tabText, { color: themeColors.subText }, activeTab === "tracking" && { color: '#ffffff' }]}>Tracking</Text>
+            </TouchableOpacity>
+        </View>
 
-      {/* 🔹 Search */}
-      {activeTab === "letters" && (
-        <TextInput style={styles.searchInput} placeholder="Filter letters by title..." value={filterText} onChangeText={setFilterText} />
-      )}
-
-      {/* 🔹 Content */}
-      {activeTab === "letters" ? (
-        filteredLetters.length === 0 ? <Text style={styles.empty}>No letters found</Text> : <FlatList data={filteredLetters} keyExtractor={(item) => `letter-${item.id}`} renderItem={renderLetter} contentContainerStyle={{ paddingBottom: 120 }} />
-      ) : requests.length === 0 ? <Text style={styles.empty}>No requests yet</Text> : <FlatList data={requests} keyExtractor={(item) => `request-${item.id}`} renderItem={renderRequest} contentContainerStyle={{ paddingBottom: 120 }} />
-      }
-
-      {/* 🔹 Fixed Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <Ionicons name="home" size={24} color={pathname === "/student/dashboard" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/student/dashboard")} />
-        <Ionicons name="search" size={24} color={pathname === "/student/search" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/student/search")} />
-        <Ionicons name="desktop-outline" size={24} color={pathname === "/student/notice" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/student/notice")} />
-        <Ionicons name="download-outline" size={24} color={pathname === "/student/downloads" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/student/downloads")} />
-        <Ionicons name="person-circle-outline" size={24} color={pathname === "/student/profile" ? "#0e0e0dff" : "#fff"} onPress={() => handleNav("/student/profile")} />
-      </View>
+        {loading ? (
+            <View style={styles.loader}><ActivityIndicator size="large" color="#3B82F6" /></View>
+        ) : (
+            <FlatList
+                data={(activeTab === "letters" ? filteredLetters : requests) as any}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.listBody}
+                ListHeaderComponent={activeTab === "letters" ? (
+                    <View style={[styles.searchBar, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                        <Ionicons name="search" size={20} color={themeColors.subText} />
+                        <TextInput style={[styles.searchInput, { color: themeColors.text }]} placeholder="Search documents..." placeholderTextColor={themeColors.subText} value={filterText} onChangeText={setFilterText} />
+                    </View>
+                ) : null}
+                renderItem={({ item }) => activeTab === "letters" ? (
+                    <View style={[styles.letterCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                         <View style={styles.letterTop}>
+                            <MaterialCommunityIcons name="email-outline" size={24} color="#3B82F6" />
+                            <View style={{ marginLeft: 15, flex: 1 }}>
+                                <Text style={[styles.letterTitleText, { color: themeColors.text }]}>{(item as any).title}</Text>
+                                <Text style={[styles.letterPreview, { color: themeColors.subText }]} numberOfLines={2}>{(item as any).content}</Text>
+                            </View>
+                         </View>
+                         <Text style={[styles.staffTitle, { color: themeColors.subText }]}>Select Staff to Submit:</Text>
+                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.staffScroll}>
+                             {staff.map(s => (
+                                 <TouchableOpacity key={s.id} style={styles.staffOrb} onPress={() => sendRequest((item as any).id, s.id)}>
+                                     {s.avatar_url ? <Image source={{ uri: s.avatar_url }} style={styles.staffAvatar} /> : <View style={[styles.staffInitial, { backgroundColor: isDark ? '#374151' : '#EFF6FF' }]}><Text style={[styles.initialText, { color: '#3B82F6' }]}>{s.username[0]}</Text></View>}
+                                     <Text style={[styles.staffName, { color: themeColors.text }]} numberOfLines={1}>{s.username}</Text>
+                                     <View style={styles.sendBadge}><Ionicons name="send" size={10} color="#fff" /></View>
+                                 </TouchableOpacity>
+                             ))}
+                         </ScrollView>
+                    </View>
+                ) : renderProgress(item as any)}
+                ListEmptyComponent={
+                    <View style={styles.empty}>
+                        <Ionicons name="mail-unread-outline" size={64} color={themeColors.border} />
+                        <Text style={[styles.emptyText, { color: themeColors.subText }]}>No items found in this category.</Text>
+                    </View>
+                }
+            />
+        )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 12, marginBottom: 10 },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#30e4de" },
-  menuBox: { backgroundColor: "#eff4f4ff", borderRadius: 12, paddingVertical: 10, marginBottom: 10, alignItems: "center", elevation: 5 },
-  menuBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 20, width: "80%", borderRadius: 8, marginVertical: 4, justifyContent: "center", backgroundColor: "#30e4de" },
-  menuText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
-  tabs: { flexDirection: "row", justifyContent: "space-around", marginVertical: 10 },
-  tabButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: "#eee" },
-  activeTab: { backgroundColor: "#30e4de" },
-  tabText: { fontSize: 16, fontWeight: "600", color: "#555" },
-  activeTabText: { color: "#fff" },
-  searchInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, margin: 10, backgroundColor: "#fff" },
-  card: { backgroundColor: "#fff", padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#ddd", elevation: 2 },
-  title: { fontSize: 16, fontWeight: "600", marginBottom: 5 },
-  content: { fontSize: 14, color: "#555", marginBottom: 8 },
-  subHeading: { fontSize: 14, fontWeight: "500", marginTop: 8 },
-  staffCard: { alignItems: "center", marginRight: 12, padding: 8, backgroundColor: "#eef", borderRadius: 8, width: 120 },
-  avatar: { width: 50, height: 50, borderRadius: 25, marginBottom: 6 },
-  name: { fontSize: 14, fontWeight: "bold", marginBottom: 4, textAlign: "center" },
-  staffButton: { backgroundColor: "#007BFF", paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6 },
-  staffButtonText: { color: "#fff", fontSize: 12 },
-  requestCard: { backgroundColor: "#fff", padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#ddd", elevation: 2 },
-  statusRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  progressBarBackground: { height: 8, flexDirection: "row", backgroundColor: "#eee", borderRadius: 4, marginTop: 8 },
-  progressBarFill: { backgroundColor: "#30e4de", borderRadius: 4 },
-  progressText: { marginTop: 4, fontSize: 12, color: "#555", fontWeight: "600" },
-  empty: { textAlign: "center", marginVertical: 20, color: "#666" },
-  bottomNav: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#30e4de", paddingVertical: 12, position: "absolute", bottom: 0, width: "100%" },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 15 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
+
+  tabBar: { flexDirection: 'row', paddingHorizontal: 24, gap: 15, marginBottom: 20, paddingTop: 10 },
+  tab: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1 },
+  tabText: { fontSize: 13, fontWeight: '700' },
+
+  listBody: { paddingHorizontal: 24, paddingBottom: 100 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingHorizontal: 15, height: 50, borderWidth: 1, marginBottom: 20 },
+  searchInput: { flex: 1, marginLeft: 10, fontSize: 15 },
+
+  letterCard: { borderRadius: 24, padding: 20, marginBottom: 20, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05 },
+  letterTop: { flexDirection: 'row' },
+  letterTitleText: { fontSize: 15, fontWeight: '700' },
+  letterPreview: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  staffTitle: { fontSize: 10, fontWeight: '800', marginTop: 20, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  staffScroll: { paddingBottom: 5 },
+  staffOrb: { alignItems: 'center', marginRight: 15, width: 60 },
+  staffAvatar: { width: 50, height: 50, borderRadius: 25 },
+  staffInitial: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  initialText: { fontSize: 18, fontWeight: '800' },
+  staffName: { fontSize: 9, fontWeight: '700', marginTop: 8 },
+  sendBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#3B82F6', width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+
+  trackCard: { borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1 },
+  trackTitle: { fontSize: 14, fontWeight: '700', marginBottom: 20 },
+  stepsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 },
+  step: { alignItems: 'center', width: 60 },
+  stepLabel: { fontSize: 8, fontWeight: '900', marginTop: 6 },
+  stepConnector: { flex: 1, height: 2, marginBottom: 15 },
+  trackDate: { fontSize: 10, textAlign: 'right', fontWeight: '500' },
+
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  empty: { alignItems: 'center', marginTop: 80 },
+  emptyText: { marginTop: 15, fontSize: 14 }
 });

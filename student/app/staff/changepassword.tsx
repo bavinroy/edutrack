@@ -1,42 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ImageBackground,
   SafeAreaView,
   Alert,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function StaffChangePasswordScreen() {
+  const router = useRouter();
+  const { isDark, theme: themeColors } = useTheme();
+
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
 
   const [secureOld, setSecureOld] = useState(true);
   const [secureNew, setSecureNew] = useState(true);
   const [secureConfirm, setSecureConfirm] = useState(true);
-
-  useEffect(() => {
-    const fetchToken = async () => {
-      const storedToken = await AsyncStorage.getItem("accessToken");
-      if (!storedToken) {
-        Alert.alert("Error", "User not authenticated");
-        return;
-      }
-      setToken(storedToken);
-    };
-    fetchToken();
-  }, []);
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
@@ -47,156 +38,164 @@ export default function StaffChangePasswordScreen() {
       Alert.alert("Error", "New password and confirm password do not match");
       return;
     }
-    if (!token) {
-      Alert.alert("Error", "Authentication token missing");
-      return;
-    }
 
     setLoading(true);
+    const token = await AsyncStorage.getItem("accessToken");
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/staff/profile/change-password/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/api/staff/profile/change-password/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+      });
 
       const data = await res.json();
-
       if (res.ok) {
         Alert.alert("Success", "Password changed successfully");
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
         router.back();
       } else {
-        Alert.alert("Error", data.error || JSON.stringify(data));
+        Alert.alert("Security Error", data.error || "Failed to update password.");
       }
     } catch (err) {
-      console.error("Change password error:", err);
-      Alert.alert("Error", "Failed to change password. Check network or server.");
+      Alert.alert("Error", "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ImageBackground
-        source={require("../../assets/images/background.jpeg")}
-        style={styles.background}
-        resizeMode="stretch"
-      >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <Text style={styles.title}>EDU TRACK</Text>
-          <Text style={styles.subtitle}>Change Password</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.headerBg} />
+      <View style={[styles.header, { backgroundColor: themeColors.headerBg }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Staff Security</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-          {/* Old Password */}
-          <View style={styles.inputWrapper}>
+      <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+        <View style={styles.welcomeCard}>
+          <Text style={styles.cardSubtitle}>Faculty Portal</Text>
+          <Text style={styles.cardTitle}>Change Password</Text>
+        </View>
+
+        <View style={[styles.formCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Text style={[styles.label, { color: themeColors.subText }]}>Old Password</Text>
+          <View style={[styles.inputBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor: themeColors.border }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={themeColors.subText} />
             <TextInput
-              style={styles.input}
-              placeholder="Enter old password"
+              style={[styles.input, { color: themeColors.text }]}
+              placeholder="Current password"
               value={oldPassword}
               onChangeText={setOldPassword}
               secureTextEntry={secureOld}
+              placeholderTextColor={themeColors.subText}
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setSecureOld(!secureOld)}
-            >
-              <Ionicons name={secureOld ? "eye-off" : "eye"} size={20} color="#888" />
+            <TouchableOpacity onPress={() => setSecureOld(!secureOld)}>
+              <Ionicons name={secureOld ? "eye-off" : "eye"} size={20} color={themeColors.subText} />
             </TouchableOpacity>
           </View>
 
-          {/* New Password */}
-          <View style={styles.inputWrapper}>
+          <Text style={[styles.label, { color: themeColors.subText }]}>New Password</Text>
+          <View style={[styles.inputBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor: themeColors.border }]}>
+            <Ionicons name="key-outline" size={20} color={themeColors.subText} />
             <TextInput
-              style={styles.input}
-              placeholder="Enter new password"
+              style={[styles.input, { color: themeColors.text }]}
+              placeholder="Minimum 8 characters"
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry={secureNew}
+              placeholderTextColor={themeColors.subText}
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setSecureNew(!secureNew)}
-            >
-              <Ionicons name={secureNew ? "eye-off" : "eye"} size={20} color="#888" />
+            <TouchableOpacity onPress={() => setSecureNew(!secureNew)}>
+              <Ionicons name={secureNew ? "eye-off" : "eye"} size={20} color={themeColors.subText} />
             </TouchableOpacity>
           </View>
 
-          {/* Confirm Password */}
-          <View style={styles.inputWrapper}>
+          <Text style={[styles.label, { color: themeColors.subText }]}>Confirm Password</Text>
+          <View style={[styles.inputBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor: themeColors.border }]}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={themeColors.subText} />
             <TextInput
-              style={styles.input}
-              placeholder="Re-enter new password"
+              style={[styles.input, { color: themeColors.text }]}
+              placeholder="Re-type new password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={secureConfirm}
+              placeholderTextColor={themeColors.subText}
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setSecureConfirm(!secureConfirm)}
-            >
-              <Ionicons name={secureConfirm ? "eye-off" : "eye"} size={20} color="#888" />
+            <TouchableOpacity onPress={() => setSecureConfirm(!secureConfirm)}>
+              <Ionicons name={secureConfirm ? "eye-off" : "eye"} size={20} color={themeColors.subText} />
             </TouchableOpacity>
           </View>
 
-          {/* Submit Button */}
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
             onPress={handleChangePassword}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? "Updating..." : "Change Password"}
-            </Text>
+            <Text style={styles.submitText}>{loading ? "PROCESSING..." : "UPDATE PASSWORD"}</Text>
+            {!loading && <Ionicons name="arrow-forward" size={18} color="#fff" />}
           </TouchableOpacity>
-        </ScrollView>
-      </ImageBackground>
+        </View>
+
+        <View style={[styles.infoBox, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}>
+          <Ionicons name="information-circle-outline" size={18} color={themeColors.subText} />
+          <Text style={[styles.infoText, { color: themeColors.subText }]}>Password changes will terminate all other active mobile and web sessions.</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1, width: "100%", justifyContent: "center" },
-  scrollContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 115,
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 15 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
+
+  scrollBody: { paddingHorizontal: 24, paddingBottom: 40, paddingTop: 10 },
+
+  welcomeCard: {
+    backgroundColor: '#EF4444',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#EF4444', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
   },
-  title: { fontSize: 26, fontWeight: "bold", color: "#00B9BD", marginBottom: 30, textAlign: "center" },
-  subtitle: { fontSize: 20, fontWeight: "bold", color: "#00B9BD", marginBottom: 30, textAlign: "center" },
-  inputWrapper: { width: "80%", position: "relative", marginBottom: 25 },
-  input: {
-    width: "100%",
+  cardSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '500' },
+  cardTitle: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginTop: 5 },
+
+  formCard: { borderRadius: 24, padding: 24, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginLeft: 4 },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    height: 54,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
+    marginBottom: 20
   },
-  eyeIcon: { position: "absolute", right: 12, top: 16 },
-  button: {
-    backgroundColor: "#00B9BD",
-    borderRadius: 12,
-    paddingVertical: 16,
-    width: "80%",
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+  input: { flex: 1, marginLeft: 12, fontSize: 15 },
+
+  submitBtn: {
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10
   },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  submitText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
+
+  infoBox: { flexDirection: 'row', padding: 20, borderRadius: 16, marginTop: 25, gap: 12 },
+  infoText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '500' }
 });
+

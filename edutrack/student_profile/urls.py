@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from student_profile import views
 
 
 urlpatterns = [
@@ -10,7 +10,6 @@ urlpatterns = [
     # Admin/Staff actions
     path("admin/create-staff/", views.create_staff, name="create_staff"),   # ✅ only admin
     path("admin/create-student/", views.create_student, name="create_student"),  # ✅ admin + staff
-
-     
-
+    # Feedback
+    path("feedback/", views.submit_feedback, name="submit_feedback"),
 ]

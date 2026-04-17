@@ -1,23 +1,26 @@
-import { Stack } from "expo-router";
-import { StyleSheet, Platform, StatusBar } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, View, LogBox } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import GlobalAlert from "../components/GlobalAlert";
+import { usePushNotifications } from "../hooks/usePushNotifications";
+import { Stack as ExpoStack } from "expo-router";
+import { ThemeProvider } from "../context/ThemeContext";
+
+LogBox.ignoreLogs(['warnOfExpoGoPushUsage']);
 
 export default function Layout() {
+  usePushNotifications();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack
-        screenOptions={{
-          headerShown: false, // removes the default header
-        }}
-      />
-    </SafeAreaView>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <ExpoStack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+        <GlobalAlert />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0, // safe padding for Android
-  },
-});

@@ -5,10 +5,10 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import StudentProfile
-from .serializers import StudentProfileSerializer, UpdateStudentProfileSerializer
+from student_profile.models import StudentProfile, Feedback
+from student_profile.serializers import StudentProfileSerializer, UpdateStudentProfileSerializer
 from django.contrib.auth import get_user_model
-from .serializers import CreateStaffSerializer, CreateStudentSerializer
+from student_profile.serializers import CreateStaffSerializer, CreateStudentSerializer
 
 
 User = get_user_model()
@@ -120,3 +120,25 @@ def create_student(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# -----------------------------
+# POST: /api/student/feedback/
+# -----------------------------
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_feedback(request):
+    user = request.user
+    subject = request.data.get("subject")
+    message = request.data.get("message")
+    category = request.data.get("category", "General")
+    
+    if not subject or not message:
+        return Response({"detail": "Subject and message are required."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    feedback = Feedback.objects.create(
+        user=user,
+        subject=subject,
+        message=message,
+        category=category
+    )
+    logger.info(f"Feedback submitted by {user.username}: {subject}")
+    return Response({"detail": "Feedback submitted successfully.", "id": feedback.id}, status=status.HTTP_201_CREATED)
