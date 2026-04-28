@@ -104,22 +104,149 @@ body.login-page {
 }
 
 /* Mobile Responsiveness & Alignment */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
     .content-wrapper {
-        padding: 15px !important;
+        padding: 5px !important;
+        margin-left: 0 !important;
     }
     
     .card {
-        border-radius: 32px !important; /* Even rounder on mobile for that app feel */
+        border-radius: 12px !important;
+        margin-bottom: 15px !important;
+        border: none !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
     }
     
+    .card-body {
+        padding: 12px !important;
+    }
+
+    /* Force tables to be scrollable and not overflow */
+    .table-responsive {
+        border: 0 !important;
+        margin-bottom: 0 !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Table cells touch target */
+    .table td, .table th {
+        padding: 12px 8px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Stack buttons on mobile */
     .btn {
         width: 100% !important;
         margin-bottom: 8px !important;
+        padding: 12px !important; /* Larger touch area */
+        font-size: 14px !important;
     }
     
-    .row {
+    .btn-group, .object-tools {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+
+    /* Improve form field alignment */
+    .form-group {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .form-group.row {
+        display: block !important;
         margin: 0 !important;
+    }
+
+    .form-group label {
+        margin-bottom: 8px !important;
+        width: 100% !important;
+        font-size: 13px !important;
+        color: #64748b !important;
+    }
+
+    .form-control, .select2-container {
+        width: 100% !important;
+        border-radius: 8px !important;
+        height: 45px !important;
+    }
+
+    /* Fix navbar clusters - Hamburger and Brand only */
+    .main-header {
+        padding: 10px 5px !important;
+    }
+
+    .navbar-nav {
+        flex-direction: row !important;
+        align-items: center !important;
+    }
+
+    .nav-link {
+        padding: 5px 10px !important;
+    }
+
+    /* Search bar on mobile - make it full width if active or hide if clutter */
+    .navbar-search-block {
+        width: 100% !important;
+        left: 0 !important;
+    }
+
+    /* Logout and other right-side icons */
+    .navbar-no-expand {
+        margin-left: auto !important;
+    }
+
+    /* Brand alignment */
+    .brand-link {
+        padding: 10px !important;
+        text-align: center !important;
+        border: none !important;
+    }
+
+    .brand-text {
+        font-size: 1rem !important;
+        font-weight: 800 !important;
+    }
+
+    /* Footer - compact */
+    .main-footer {
+        padding: 10px !important;
+        text-align: center !important;
+        font-size: 11px !important;
+    }
+}
+
+/* Specific alignment for list filters on mobile */
+@media (max-width: 768px) {
+    #changelist-filter {
+        position: static !important;
+        width: 100% !important;
+        margin: 10px 0 !important;
+        border-radius: 12px !important;
+        background: #fff !important;
+        border: 1px solid var(--border) !important;
+    }
+
+    #changelist-filter h2 {
+        border-radius: 12px 12px 0 0 !important;
+        padding: 10px !important;
+        font-size: 14px !important;
+    }
+
+    .object-tools {
+        float: none !important;
+        margin-bottom: 15px !important;
+    }
+
+    .object-tools li {
+        display: block !important;
+        margin: 5px 0 !important;
+    }
+
+    /* Hide unnecessary labels in tables for space */
+    .column-is_staff, .column-is_active {
+        display: none !important;
     }
 }
 

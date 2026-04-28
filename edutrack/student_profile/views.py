@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from student_profile.models import StudentProfile, Feedback
 from student_profile.serializers import StudentProfileSerializer, UpdateStudentProfileSerializer
 from django.contrib.auth import get_user_model
@@ -39,7 +39,7 @@ def get_student_profile(request):
 # -----------------------------
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def update_student_profile(request):
     user = request.user
     logger.info(f"Updating profile for user: {user.username}, files={list(request.FILES.keys())}")

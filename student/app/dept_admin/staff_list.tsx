@@ -4,7 +4,6 @@ import {
     Text, 
     FlatList, 
     StyleSheet, 
-    ActivityIndicator, 
     TouchableOpacity, 
     Image, 
     StatusBar, 
@@ -18,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-ico
 import { useRouter } from "expo-router";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -101,7 +101,7 @@ export default function StaffListScreen() {
             </View>
 
             {loading && !refreshing ? (
-                <View style={styles.center}><ActivityIndicator color="#6366F1" size="large" /></View>
+                <View style={styles.center}><EduLoading size={60} /></View>
             ) : (
                 <FlatList
                     data={staff}

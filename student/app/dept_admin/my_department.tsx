@@ -1,6 +1,6 @@
 // app/dept_admin/my_department.tsx
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, StatusBar } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";

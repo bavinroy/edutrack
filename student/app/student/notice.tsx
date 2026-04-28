@@ -5,7 +5,6 @@ import {
   FlatList,
   Image,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -20,6 +19,7 @@ import { API_BASE_URL } from "../config";
 import StudentBottomNav from "../../components/StudentBottomNav";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 type Notice = {
   id: number;
@@ -140,7 +140,7 @@ export default function StudentNoticeBoard() {
 
         {loading ? (
           <View style={styles.loader}>
-            <ActivityIndicator size="large" color="#3B82F6" />
+            <EduLoading size={60} />
           </View>
         ) : (
           <FlatList

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Alert, TextInput, FlatList, StatusBar, Dimensions, RefreshControl
+    Alert, TextInput, FlatList, StatusBar, Dimensions, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -173,7 +174,7 @@ export default function AttendanceReport() {
                 </View>
 
                 {loading ? (
-                    <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                    <View style={styles.center}><EduLoading size={60} /></View>
                 ) : (
                     <FlatList
                         data={filteredHistory}

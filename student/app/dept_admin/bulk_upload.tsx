@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    ActivityIndicator,
     Alert,
     ScrollView,
     StatusBar,
@@ -18,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -60,7 +60,7 @@ export default function DeptAdminBulkUploadScreen() {
                 }
             }
         } catch (e) {
-            console.log("Error loading role", e);
+            // console.log("Error loading role", e);
         }
     };
 
@@ -75,7 +75,7 @@ export default function DeptAdminBulkUploadScreen() {
                 setFile(result.assets[0]);
             }
         } catch (err) {
-            console.log("File pick error", err);
+            // console.log("File pick error", err);
         }
     };
 
@@ -186,7 +186,7 @@ export default function DeptAdminBulkUploadScreen() {
                     onPress={handleUpload}
                     disabled={!file || loading}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : (
+                    {loading ? <EduLoading size={25} /> : (
                         <>
                             <Text style={styles.submitTxt}>VALIDATE & PREVIEW</Text>
                             <Ionicons name="analytics" size={20} color="#fff" />

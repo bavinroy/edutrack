@@ -9,13 +9,13 @@ import {
   SafeAreaView,
   Alert,
   StatusBar,
-  ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 export default function FeedbackScreen() {
   const router = useRouter();
@@ -130,7 +130,7 @@ export default function FeedbackScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <EduLoading size={25} />
           ) : (
             <>
               <Text style={styles.submitText}>SUBMIT FEEDBACK</Text>

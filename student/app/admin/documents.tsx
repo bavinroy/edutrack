@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     FlatList,
     StyleSheet,
-    ActivityIndicator,
     Alert,
     Dimensions,
     StatusBar,
@@ -23,6 +22,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -116,7 +116,7 @@ export default function AdminDocuments() {
     };
 
     const deleteDoc = (id: number) => {
-        Alert.alert("Delete Document?", "This file will be permanently removed. Still delete?", [
+        Alert.alert("Delete Material?", "This material will be permanently removed. Still delete?", [
             { text: "Cancel", style: "cancel" },
             {
                 text: "Delete", style: "destructive", onPress: async () => {
@@ -176,8 +176,8 @@ export default function AdminDocuments() {
                         <Ionicons name="arrow-back" size={24} color={themeColors.text} />
                     </TouchableOpacity>
                     <View style={styles.headerTitleBox}>
-                        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Documents</Text>
-                        <Text style={[styles.headerSub, { color: themeColors.subText }]}>MANAGE FILES</Text>
+                        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Study Materials</Text>
+                        <Text style={[styles.headerSub, { color: themeColors.subText }]}>MANAGE MATERIALS</Text>
                     </View>
                     <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
                         <Ionicons name="add-circle" size={28} color="#6366F1" />
@@ -185,7 +185,7 @@ export default function AdminDocuments() {
                 </View>
 
                 {loading ? (
-                    <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                    <View style={styles.center}><EduLoading size={60} /></View>
                 ) : (
                     <FlatList
                         data={docs}
@@ -198,7 +198,7 @@ export default function AdminDocuments() {
                             <View style={[styles.intelBoard, { backgroundColor: isDark ? '#1E293B' : '#0F172A' }]}>
                                 <View style={styles.intelTile}>
                                     <Text style={styles.intelVal}>{docs.length}</Text>
-                                    <Text style={styles.intelLab}>TOTAL FILES</Text>
+                                    <Text style={styles.intelLab}>TOTAL MATERIALS</Text>
                                 </View>
                                 <View style={styles.intelDivider} />
                                 <View style={[styles.intelTile, { alignItems: 'flex-start', paddingLeft: 20 }]}>
@@ -221,19 +221,19 @@ export default function AdminDocuments() {
                     <View style={styles.modalOverlay}>
                         <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
                             <View style={styles.modalHdr}>
-                                <Text style={[styles.modalRole, { color: '#6366F1' }]}>UPLOAD FILE</Text>
+                                <Text style={[styles.modalRole, { color: '#6366F1' }]}>UPLOAD MATERIAL</Text>
                                 <TouchableOpacity onPress={() => setModalVisible(false)}>
                                     <Ionicons name="close-circle" size={28} color={themeColors.outline} />
                                 </TouchableOpacity>
                             </View>
                             <ScrollView showsVerticalScrollIndicator={false}>
                                 <View style={styles.inpGrp}>
-                                    <Text style={[styles.inpLab, { color: themeColors.subText }]}>TITLE</Text>
-                                    <TextInput style={[styles.inp, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', color: themeColors.text, borderColor: themeColors.border }]} value={title} onChangeText={setTitle} placeholder="Document Name" placeholderTextColor={themeColors.outline} />
+                                    <Text style={[styles.inpLab, { color: themeColors.subText }]}>MATERIAL TITLE</Text>
+                                    <TextInput style={[styles.inp, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', color: themeColors.text, borderColor: themeColors.border }]} value={title} onChangeText={setTitle} placeholder="Material Name" placeholderTextColor={themeColors.outline} />
                                 </View>
 
                                 <View style={styles.inpGrp}>
-                                    <Text style={[styles.inpLab, { color: themeColors.subText }]}>ABOUT FILE</Text>
+                                    <Text style={[styles.inpLab, { color: themeColors.subText }]}>ABOUT MATERIAL</Text>
                                     <TextInput style={[styles.inp, { height: 100, textAlignVertical: 'top', backgroundColor: isDark ? '#1E293B' : '#F8FAFC', color: themeColors.text, borderColor: themeColors.border }]} value={desc} onChangeText={setDesc} multiline placeholder="Add a short description..." placeholderTextColor={themeColors.outline} />
                                 </View>
 
@@ -264,7 +264,7 @@ export default function AdminDocuments() {
                                     />
                                     <View style={{ flex: 1, marginLeft: 15 }}>
                                         <Text style={[styles.pickLab, { color: file ? '#6366F1' : themeColors.subText }]}>
-                                            {file ? file.name : "SELECT FILE"}
+                                            {file ? file.name : "SELECT MATERIAL"}
                                         </Text>
                                         <Text style={[styles.pickSub, { color: themeColors.outline }]}>{file ? "File selected" : "Tap to choose a document"}</Text>
                                     </View>
@@ -275,8 +275,8 @@ export default function AdminDocuments() {
                                     onPress={handleUpload}
                                     disabled={isUploading}
                                 >
-                                    {isUploading ? <ActivityIndicator color="#fff" /> :
-                                        <Text style={styles.provisionTxt}>UPLOAD NOW</Text>}
+                                    {isUploading ? <EduLoading size={25} /> :
+                                        <Text style={styles.provisionTxt}>UPLOAD MATERIAL</Text>}
                                 </TouchableOpacity>
                                 <View style={{ height: 30 }} />
                             </ScrollView>

@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   StatusBar,
   TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import EduLoading from "../../components/EduLoading";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import { theme } from "../theme";
 
@@ -27,7 +27,7 @@ export default function StaffSearchScreen() {
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <EduLoading size={60} />
       </View>
     );
   }

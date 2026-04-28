@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   ScrollView,
   Modal,
@@ -20,6 +19,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -170,7 +170,7 @@ export default function BulkUploadScreen() {
               disabled={!file || loading}
               onPress={() => processUpload(true)}
            >
-              {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryBtnText}>PREVIEW & VALIDATE</Text>}
+              {loading ? <EduLoading size={25} /> : <Text style={styles.primaryBtnText}>PREVIEW & VALIDATE</Text>}
            </TouchableOpacity>
         </View>
 

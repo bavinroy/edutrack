@@ -5,7 +5,6 @@ import {
     FlatList,
     TouchableOpacity,
     StyleSheet,
-    ActivityIndicator,
     Alert,
     Modal,
     TextInput,
@@ -21,6 +20,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -231,7 +231,7 @@ export default function DeptAdminRequestsScreen() {
             </View>
 
             {loading && !refreshing ? (
-                <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                <View style={styles.center}><EduLoading size={60} /></View>
             ) : (
                 <FlatList
                     data={activeTab === 'student' ? studentRequests : activeTab === 'staff' ? timetableRequests : activeTab === 'account' ? accountRequests : bulkRequests}
@@ -312,7 +312,7 @@ export default function DeptAdminRequestsScreen() {
                                                         <Text style={styles.loadPreviewText}>Examine Records</Text>
                                                     </TouchableOpacity>
                                                 )}
-                                                {previewLoading && <ActivityIndicator color="#6366F1" />}
+                                                {previewLoading && <EduLoading size={25} />}
                                                 {previewData && (
                                                     <View style={[styles.previewStats, { backgroundColor: '#10B98115', borderColor: '#10B98130' }]}>
                                                         <Text style={styles.pStat}>Verified Records: {previewData.valid_count}</Text>

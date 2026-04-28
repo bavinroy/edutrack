@@ -22,3 +22,5 @@ pandas
 openpyxl
 pdfplumber
 python-docx
+python-dotenv
+dj-database-url

@@ -172,7 +172,7 @@ export default function SettingsScreen() {
                 }
               }
             } catch (e) {
-              console.log("Failed to sync push notification setting with server", e);
+              // console.log("Failed to sync push notification setting with server", e);
             }
           })}
           {renderSettingRow("moon-outline", "Dark Mode", isDark, () => toggleTheme())}

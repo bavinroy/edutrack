@@ -228,8 +228,13 @@ class CustomUserAdmin(UserAdmin):
             "fields": ("register_number", "display_name", "email", "role", "department", "first_name", "last_name", "year", "password1", "password2", "is_staff", "is_superuser")}
         ),
     )
-    
-    
+
+    @admin.display(description="Year (Student)", ordering="student_account__year")
+    def get_student_year(self, obj):
+        if hasattr(obj, 'student_account') and obj.student_account:
+            return obj.student_account.year
+        return "-"
+
     def get_readonly_fields(self, request, obj=None):
         return []
 
@@ -319,7 +324,8 @@ class CustomUserAdmin(UserAdmin):
                                     user=user,
                                     roll_no=username,
                                     year=1, # Default
-                                    course=department.name
+                                    course=department.name,
+                                    department=department
                                 )
                             
                             success_count += 1
@@ -351,12 +357,6 @@ class CustomUserAdmin(UserAdmin):
         }
         return render(request, "admin/accounts/user/bulk_upload.html", context)
 
-    def get_student_year(self, obj):
-        if hasattr(obj, 'student_account') and obj.student_account:
-            return obj.student_account.year
-        return "-"
-    get_student_year.short_description = 'Year (Student)'
-    get_student_year.admin_order_field = 'student_account__year'
 
     def get_form(self, request, obj=None, **kwargs):
         # ... (remains unchanged)
@@ -418,7 +418,8 @@ class CustomUserAdmin(UserAdmin):
                     user=obj,
                     roll_no=obj.username,
                     year=year if year else 1,
-                    course=dept_name
+                    course=dept_name,
+                    department=obj.department
                 )
         
         # If the saved user is a DEPT_ADMIN, ensure they have extensive permissions
@@ -453,7 +454,14 @@ class CustomUserAdmin(UserAdmin):
         # If User is DEPT_STAFF or DEPT_ADMIN, ensure StaffProfile exists
         if obj.role in [User.Roles.DEPT_STAFF, User.Roles.DEPT_ADMIN]:
             from Staff_profile.models import StaffProfile
-            StaffProfile.objects.get_or_create(user=obj)
+            dept_name = obj.department.name if obj.department else "General"
+            StaffProfile.objects.get_or_create(
+                user=obj,
+                defaults={
+                    "department": dept_name,
+                    "designation": "HOD" if obj.role == User.Roles.DEPT_ADMIN else "Staff"
+                }
+            )
 
         # If the saved user is a DEPT_STAFF, grant default permissions to manage Students
         if obj.role == User.Roles.DEPT_STAFF:

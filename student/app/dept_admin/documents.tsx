@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     FlatList,
     StyleSheet,
-    ActivityIndicator,
     Alert,
     Modal,
     ScrollView,
@@ -22,6 +21,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -77,7 +77,7 @@ export default function DeptAdminDocuments() {
 
     const handleUpload = async () => {
         if (!title || !subjectName || !subjectCode || !staffName || !file) {
-            return Alert.alert("Required", "Manifest requires title, subject, code, staff and source file.");
+            return Alert.alert("Required", "Please provide title, subject, code, staff name and select a file.");
         }
 
         setUploading(true);
@@ -102,20 +102,20 @@ export default function DeptAdminDocuments() {
                 }
             });
 
-            Alert.alert("Authorized", "Academic resource published successfully.");
+            Alert.alert("Success", "Study material uploaded successfully.");
             setModalVisible(false);
             setTitle(""); setDesc(""); setSubjectName(""); setSubjectCode(""); setStaffName(""); setFile(null);
             fetchDocuments();
         } catch (err) {
-            Alert.alert("System Fault", "Could not commit resource to storage.");
+            Alert.alert("Error", "Could not upload material.");
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (id: number) => {
-        Alert.alert("Erase Resource", "Remove this material from the academic archive?", [
-            { text: "Abort", style: "cancel" },
+        Alert.alert("Delete Material", "Permanently remove this study material?", [
+            { text: "Cancel", style: "cancel" },
             {
                 text: "Confirm", style: "destructive", onPress: async () => {
                     const token = await AsyncStorage.getItem("accessToken");
@@ -161,8 +161,8 @@ export default function DeptAdminDocuments() {
                     <Ionicons name="chevron-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleBox}>
-                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>Archives</Text>
-                    <Text style={[styles.headerSub, { color: themeColors.subText }]}>STUDY MATERIAL REGISTRY</Text>
+                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>Study Materials</Text>
+                    <Text style={[styles.headerSub, { color: themeColors.subText }]}>MANAGE MATERIALS</Text>
                 </View>
                 <TouchableOpacity onPress={fetchDocuments} style={[styles.refreshBtn, { backgroundColor: '#6366F120' }]}>
                     <Ionicons name="refresh" size={20} color="#6366F1" />
@@ -170,7 +170,7 @@ export default function DeptAdminDocuments() {
             </View>
 
             {loading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                <View style={styles.center}><EduLoading size={60} /></View>
             ) : (
                 <FlatList
                     data={docs}
@@ -180,14 +180,14 @@ export default function DeptAdminDocuments() {
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
                         <View style={styles.heroSection}>
-                            <Text style={[styles.heroTitle, { color: themeColors.text }]}>Academic Cabinet</Text>
-                            <Text style={[styles.heroDesc, { color: themeColors.subText }]}>Audit and provision study resources for the student body.</Text>
+                            <Text style={[styles.heroTitle, { color: themeColors.text }]}>Study Materials</Text>
+                            <Text style={[styles.heroDesc, { color: themeColors.subText }]}>Manage and share study materials with students.</Text>
                         </View>
                     }
                     ListEmptyComponent={
                         <View style={styles.empty}>
                             <MaterialCommunityIcons name="folder-off-outline" size={80} color={themeColors.border} />
-                            <Text style={[styles.emptyText, { color: themeColors.subText }]}>Cabinet is currently void.</Text>
+                            <Text style={[styles.emptyText, { color: themeColors.subText }]}>No study materials found.</Text>
                         </View>
                     }
                 />
@@ -199,7 +199,7 @@ export default function DeptAdminDocuments() {
                 activeOpacity={0.8}
             >
                 <Ionicons name="cloud-upload" size={24} color="#fff" />
-                <Text style={styles.fabText}>PUBLISH</Text>
+                <Text style={styles.fabText}>UPLOAD</Text>
             </TouchableOpacity>
 
             {/* Upload Modal */}
@@ -207,17 +207,17 @@ export default function DeptAdminDocuments() {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalHeaderTag}>NEW RESOURCE</Text>
+                            <Text style={styles.modalHeaderTag}>NEW MATERIAL</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.closeBtn, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
                                 <Ionicons name="close" size={24} color={themeColors.text} />
                             </TouchableOpacity>
                         </View>
 
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Provision Material</Text>
+                            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Upload Material</Text>
 
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: themeColors.subText }]}>FILE NOMENCLATURE</Text>
+                                <Text style={[styles.label, { color: themeColors.subText }]}>MATERIAL TITLE</Text>
                                 <TextInput style={[styles.input, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: themeColors.border, color: themeColors.text }]} placeholder="e.g. Quantum Mechanics - Lecture 1" placeholderTextColor={themeColors.subText} value={title} onChangeText={setTitle} />
                             </View>
 
@@ -233,7 +233,7 @@ export default function DeptAdminDocuments() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: themeColors.subText }]}>ORCHESTRATOR</Text>
+                                <Text style={[styles.label, { color: themeColors.subText }]}>TEACHER NAME</Text>
                                 <TextInput style={[styles.input, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: themeColors.border, color: themeColors.text }]} placeholder="Faculty Member Name" placeholderTextColor={themeColors.subText} value={staffName} onChangeText={setStaffName} />
                             </View>
 
@@ -249,7 +249,7 @@ export default function DeptAdminDocuments() {
                                 ) : (
                                     <View style={styles.filePlaceholder}>
                                         <MaterialCommunityIcons name="file-upload-outline" size={24} color={themeColors.subText} />
-                                        <Text style={[styles.filePlaceholderTxt, { color: themeColors.subText }]}>Attach Source File</Text>
+                                        <Text style={[styles.filePlaceholderTxt, { color: themeColors.subText }]}>Attach Material File</Text>
                                     </View>
                                 )}
                             </TouchableOpacity>
@@ -259,9 +259,9 @@ export default function DeptAdminDocuments() {
                                 onPress={handleUpload}
                                 disabled={uploading}
                             >
-                                {uploading ? <ActivityIndicator color="#fff" /> :
+                                {uploading ? <EduLoading size={25} /> :
                                     <>
-                                        <Text style={styles.uploadTxt}>INITIALIZE PUBLICATION</Text>
+                                        <Text style={styles.uploadTxt}>UPLOAD MATERIAL</Text>
                                         <Ionicons name="shield-checkmark" size={18} color="#fff" />
                                     </>}
                             </TouchableOpacity>

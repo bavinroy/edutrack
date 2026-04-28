@@ -9,7 +9,6 @@ import {
     ScrollView,
     Alert,
     StatusBar,
-    ActivityIndicator,
     Modal,
     Dimensions
 } from "react-native";
@@ -21,6 +20,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -139,7 +139,7 @@ export default function AdminProfileScreen() {
     if (loading || !profile) {
         return (
             <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-                <ActivityIndicator size="large" color="#6366F1" />
+                <EduLoading size={60} />
                 <Text style={[styles.loaderText, { color: themeColors.subText }]}>Loading Profile...</Text>
             </View>
         );
@@ -291,7 +291,7 @@ export default function AdminProfileScreen() {
                                 disabled={updating}
                                 activeOpacity={0.8}
                             >
-                                {updating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnTxt}>SAVE CHANGES</Text>}
+                                {updating ? <EduLoading size={25} /> : <Text style={styles.saveBtnTxt}>SAVE CHANGES</Text>}
                             </TouchableOpacity>
                         )}
 

@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ImageBackground,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import EduLoading from "../../components/EduLoading";
 
 export default function StudentResult() {
   const router = useRouter();
@@ -28,8 +28,8 @@ export default function StudentResult() {
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#30e4de" />
-        <Text style={styles.loaderText}>Loading...</Text>
+        <EduLoading size={60} />
+        <Text style={styles.loaderText}>Loading Notifications...</Text>
       </View>
     );
   }

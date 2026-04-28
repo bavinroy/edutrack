@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   StatusBar,
   FlatList,
   TouchableOpacity,
@@ -19,6 +18,7 @@ import StaffBottomNav from "../../components/StaffBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { API_BASE_URL } from "../config";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -123,7 +123,7 @@ export default function StaffNotifications() {
       </View>
 
       {loading && notifications.length === 0 ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+        <View style={styles.center}><EduLoading size={60} /></View>
       ) : (
         <FlatList
           data={notifications}

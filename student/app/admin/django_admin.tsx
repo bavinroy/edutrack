@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, StatusBar, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, StatusBar, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../config';
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -49,7 +50,7 @@ export default function DjangoAdminScreen() {
                     />
                     {loading && (
                         <View style={[styles.scrim, { backgroundColor: themeColors.bg }]}>
-                            <ActivityIndicator size="large" color="#6366F1" />
+                            <EduLoading size={60} />
                             <Text style={[styles.scrimTxt, { color: themeColors.subText }]}>Opening Admin Portal...</Text>
                         </View>
                     )}

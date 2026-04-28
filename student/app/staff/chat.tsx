@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   StatusBar
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +10,7 @@ import { useRouter } from "expo-router";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
+import EduLoading from "../../components/EduLoading";
 
 export default function StaffChat() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function StaffChat() {
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <EduLoading size={60} />
       </View>
     );
   }

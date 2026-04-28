@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Alert, FlatList, StatusBar
+    Alert, FlatList, StatusBar
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 import { theme } from '../theme';
+import EduLoading from "../../components/EduLoading";
 
 interface AttendanceRecord {
     id: number;
@@ -128,7 +129,7 @@ export default function AttendanceHistory() {
 
     if (loading) return (
         <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <EduLoading size={60} />
         </View>
     );
 

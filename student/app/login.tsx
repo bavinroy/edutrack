@@ -9,13 +9,13 @@ import {
   TouchableOpacity,
   ImageBackground,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Modal,
   Image,
 } from "react-native";
+import EduLoading from "../components/EduLoading";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Notifications from "expo-notifications";
@@ -55,6 +55,7 @@ const fetchWithAuth = async (url: string, options: any = {}) => {
         },
       });
     } else {
+      await AsyncStorage.multiRemove(["accessToken", "refreshToken", "userRole"]);
       throw new Error("Session expired. Please log in again.");
     }
   }
@@ -71,6 +72,23 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'Student' | 'Staff' | 'Admin'>('Student');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load remembered username on mount
+  React.useEffect(() => {
+    const loadRememberedUser = async () => {
+      try {
+        const savedUser = await AsyncStorage.getItem("rememberedUsername");
+        if (savedUser) {
+          setUsername(savedUser);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        // Silently fail
+      }
+    };
+    loadRememberedUser();
+  }, []);
 
   // Contact Admin Modal State
   const [contactModalVisible, setContactModalVisible] = useState(false);
@@ -102,12 +120,19 @@ export default function LoginScreen() {
       });
 
       const data = await response.json();
-      console.log("Login Response:", data);
+      // console.log("Login Response:", data);
 
       if (!response.ok) {
         Alert.alert("Login Failed", data.detail || "Invalid credentials");
         setLoading(false);
         return;
+      }
+
+      // 🔹 Handle Remember Me
+      if (rememberMe) {
+        await AsyncStorage.setItem("rememberedUsername", username);
+      } else {
+        await AsyncStorage.removeItem("rememberedUsername");
       }
 
       // Step 2: Save tokens
@@ -128,16 +153,16 @@ export default function LoginScreen() {
             },
             body: JSON.stringify({ token: pushToken }),
           });
-          console.log("Push token registered successfully");
+          // console.log("Push token registered successfully");
         }
       } catch (e) {
-        console.log("Failed to register push token during login", e);
+        // console.log("Failed to register push token during login", e);
       }
 
       // Step 3: Get role with token
       const roleResponse = await fetchWithAuth(`${API_BASE_URL}/api/accounts/whoami/`);
       const roleData = await roleResponse.json();
-      console.log("Role Data:", roleData);
+      // console.log("Role Data:", roleData);
 
       if (!roleResponse.ok || !roleData.role) {
         Alert.alert("Error", "Could not determine user role");
@@ -166,8 +191,8 @@ export default function LoginScreen() {
           Alert.alert("Error", `Unknown role: ${roleData.role}`);
       }
     } catch (err: any) {
-      console.error("Login error:", err);
-      Alert.alert("Error", err.message || "Something went wrong.");
+      // console.error("Login error:", err);
+      Alert.alert("Network Error", "Could not connect to the server. Please check your internet connection.");
     } finally {
       setLoading(false);
     }
@@ -299,17 +324,28 @@ export default function LoginScreen() {
               </View>
 
               <View style={styles.optionsRow}>
-                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{ width: 18, height: 18, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, marginRight: 8 }} />
-                  <Text style={{ color: '#000', fontSize: 14 }}>Remember Me</Text>
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.checkbox, 
+                    rememberMe && styles.checkboxActive
+                  ]}>
+                    {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                  <Text style={{ color: rememberMe ? '#0056D2' : '#000', fontSize: 14, fontWeight: rememberMe ? 'bold' : 'normal' }}>Remember Me</Text>
                 </TouchableOpacity>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push("/forgot_password")}>
                   <Text style={{ color: '#0056D2', fontWeight: 'bold' }}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
 
               {loading ? (
-                <ActivityIndicator size="large" color="#0056D2" style={{ marginTop: 20 }} />
+                <View style={{ alignItems: 'center', marginTop: 20 }}>
+                  <EduLoading size={40} />
+                </View>
               ) : (
                 <TouchableOpacity style={styles.signInButton} onPress={handleLogin}>
                   <Text style={styles.signInButtonText}>Sign In</Text>
@@ -356,7 +392,11 @@ export default function LoginScreen() {
                     <Text style={{ fontWeight: 'bold', color: '#e65100' }}>PG (Post Graduate)</Text>
                   </TouchableOpacity>
                 </View>
-                {loadingDepts && <ActivityIndicator color="#0056D2" style={{ marginTop: 10 }} />}
+                {loadingDepts && (
+                  <View style={{ alignItems: 'center', marginTop: 10 }}>
+                    <EduLoading size={30} />
+                  </View>
+                )}
               </View>
             )}
 
@@ -389,7 +429,11 @@ export default function LoginScreen() {
                   onPress={submitAccountRequest}
                   disabled={loading}
                 >
-                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signInButtonText}>Submit Request</Text>}
+                  {loading ? (
+                    <View style={{ width: '100%', alignItems: 'center' }}>
+                      <EduLoading size={30} />
+                    </View>
+                  ) : <Text style={styles.signInButtonText}>Submit Request</Text>}
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -534,5 +578,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#0056D2',
+    borderRadius: 6,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  checkboxActive: {
+    backgroundColor: '#0056D2',
+    borderColor: '#0056D2',
+  },
 });

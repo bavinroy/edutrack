@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Modal,
   TextInput,
@@ -21,6 +20,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -161,7 +161,7 @@ export default function StaffRequestsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+        <View style={styles.center}><EduLoading size={60} /></View>
       ) : (
         <FlatList
           data={requests}

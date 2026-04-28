@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
   StyleSheet,
@@ -17,6 +16,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import StudentBottomNav from "../../components/StudentBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -82,7 +82,7 @@ export default function StudentTimetable() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <EduLoading size={60} />
       </View>
     );
   }

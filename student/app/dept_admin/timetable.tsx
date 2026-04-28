@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StatusBar,
@@ -19,6 +18,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -56,7 +56,7 @@ export default function DeptAdminTimetable() {
         setTimetables(data);
       }
     } catch (e) {
-      console.log("Fetch error", e);
+      // console.log("Fetch error", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -187,7 +187,7 @@ export default function DeptAdminTimetable() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#6366F1" size="large" /></View>
+        <View style={styles.center}><EduLoading size={60} /></View>
       ) : (
         <FlatList
           data={timetables}

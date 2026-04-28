@@ -119,12 +119,12 @@ class StaffProfileListView(generics.ListAPIView):
 
 class StaffProfileDetailView(generics.RetrieveAPIView):
     """
-    GET /api/staff/profile/<user_id>/
-    Returns profile for a specific user
+    GET /api/staff/profile/<id>/
+    Returns profile for a specific user. Can accept either StaffProfile ID or User ID.
     """
     serializer_class = StaffProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'user_id'
+    lookup_field = 'pk'
 
     def get_queryset(self):
         user = self.request.user
@@ -133,3 +133,14 @@ class StaffProfileDetailView(generics.RetrieveAPIView):
             return StaffProfile.objects.all()
         # Staff can only see their own
         return StaffProfile.objects.filter(user=user)
+
+    def get_object(self):
+        queryset = self.get_queryset()
+        identifier = self.kwargs.get('pk')
+        from django.shortcuts import get_object_or_404
+        try:
+            # First try matching the user_id (since most of the app uses user_id)
+            return queryset.get(user_id=identifier)
+        except StaffProfile.DoesNotExist:
+            # Fallback to StaffProfile's primary key
+            return get_object_or_404(queryset, pk=identifier)

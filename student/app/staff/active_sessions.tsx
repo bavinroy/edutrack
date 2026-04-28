@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, StatusBar, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, StatusBar, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useTheme } from '../../context/ThemeContext';
+import EduLoading from '../../components/EduLoading';
 import StaffBottomNav from '../../components/StaffBottomNav';
 
 const { width } = Dimensions.get("window");
@@ -93,7 +94,7 @@ export default function StaffActiveSessions() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 40 }} />
+          <EduLoading size={60} />
         ) : sessions.length === 0 ? (
           <View style={styles.emptyWrap}>
              <Ionicons name="cloud-offline-outline" size={48} color={themeColors.border} />

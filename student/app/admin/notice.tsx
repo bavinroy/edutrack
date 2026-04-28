@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   Image,
-  ActivityIndicator,
   StatusBar,
   Dimensions,
   Alert,
@@ -22,6 +21,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import axios from "axios";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -253,7 +253,7 @@ export default function PrincipalNoticeScreen() {
                   disabled={isPosting}
                   activeOpacity={0.8}
                 >
-                  {isPosting ? <ActivityIndicator color="#fff" /> :
+                  {isPosting ? <EduLoading size={25} /> :
                     <><Text style={styles.dispatchTxt}>POST</Text><Ionicons name="send" size={16} color="#fff" /></>}
                 </TouchableOpacity>
               </View>
@@ -274,7 +274,7 @@ export default function PrincipalNoticeScreen() {
             </View>
           }
           ListEmptyComponent={
-            loading && !fetching ? <ActivityIndicator color="#6366F1" style={{ marginTop: 50 }} /> :
+            loading && !fetching ? <EduLoading size={60} style={{ marginTop: 50 }} /> :
               <View style={styles.empty}>
                 <Ionicons name="notifications-off-outline" size={80} color={themeColors.border} />
                 <Text style={[styles.emptyText, { color: themeColors.subText }]}>No announcements yet.</Text>

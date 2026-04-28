@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Image,
   TextInput,
@@ -18,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 type Letter = { id: number; title: string; content: string; created_at: string };
 type Staff = { id: number; username: string; avatar_url?: string };
@@ -130,7 +130,7 @@ export default function RequestsScreen() {
         </View>
 
         {loading ? (
-            <View style={styles.loader}><ActivityIndicator size="large" color="#3B82F6" /></View>
+            <View style={styles.loader}><EduLoading size={60} /></View>
         ) : (
             <FlatList
                 data={(activeTab === "letters" ? filteredLetters : requests) as any}

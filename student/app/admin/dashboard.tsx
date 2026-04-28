@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
   StatusBar,
@@ -19,6 +18,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config";
 import AdminBottomNav from "../../components/AdminBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +35,7 @@ export default function AdminDashboard() {
     activeNotices: 0,
     totalDepartments: 0
   });
+  const [badges, setBadges] = useState<any>({});
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
 
   const fetchAllData = async () => {
@@ -44,28 +45,33 @@ export default function AdminDashboard() {
 
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [profRes, lettersRes, accountsRes, noticesRes, deptsRes] = await Promise.all([
+      const results = await Promise.all([
         axios.get(`${API_BASE_URL}/api/staff/profile/`, { headers }).catch(e => {
-          console.error("Profile Fetch Error:", e);
+          console.error("DEBUG: Profile Fetch Error:", e.response?.status, e.config?.url);
           return { data: profile || {} };
         }),
         axios.get(`${API_BASE_URL}/api/accounts/request/principal/list/`, { headers }).catch(e => {
-          console.error("Requests Fetch Error:", e);
+          console.error("DEBUG: Requests Fetch Error:", e.response?.status, e.config?.url);
           return { data: [] };
         }),
         axios.get(`${API_BASE_URL}/api/accounts/account-request/list/`, { headers }).catch(e => {
-          console.error("Identity Fetch Error:", e);
+          console.error("DEBUG: Identity Fetch Error:", e.response?.status, e.config?.url);
           return { data: [] };
         }),
         axios.get(`${API_BASE_URL}/api/accounts/notice/list/`, { headers }).catch(e => {
-          console.error("Notice Fetch Error:", e);
+          console.error("DEBUG: Notice Fetch Error:", e.response?.status, e.config?.url);
           return { data: [] };
         }),
         axios.get(`${API_BASE_URL}/api/accounts/departments/`, { headers }).catch(e => {
-          console.error("Depts Fetch Error:", e);
+          console.error("DEBUG: Depts Fetch Error:", e.response?.status, e.config?.url);
           return { data: [] };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/badges/`, { headers }).catch(e => {
+          return { data: {} };
         })
       ]);
+
+      const [profRes, lettersRes, accountsRes, noticesRes, deptsRes, badgeRes] = results;
 
       if (profRes && profRes.data) {
         const profData = profRes.data;
@@ -81,6 +87,8 @@ export default function AdminDashboard() {
         activeNotices: Array.isArray(noticesRes.data) ? noticesRes.data.length : 0,
         totalDepartments: Array.isArray(deptsRes.data) ? deptsRes.data.length : (profRes.data.total_departments || 0)
       });
+
+      setBadges(badgeRes?.data || {});
 
     } catch (err) {
       console.error("Admin dashboard critical error", err);
@@ -108,7 +116,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <EduLoading size={80} />
         <Text style={[styles.loaderText, { color: themeColors.subText }]}>Loading Dashboard...</Text>
       </View>
     );
@@ -177,7 +185,7 @@ export default function AdminDashboard() {
             <View style={styles.profileTexts}>
               <Text style={styles.profileGreeting}>Welcome,</Text>
               <Text style={styles.profileName}>{adminName}</Text>
-              <Text style={styles.profileDept}>School Principal</Text>
+              <Text style={styles.profileDept}>Principal</Text>
             </View>
             <TouchableOpacity onPress={() => handleNav("/admin/profile")}>
               {profile?.avatar ? (
@@ -264,14 +272,16 @@ export default function AdminDashboard() {
             {[
               { id: 1, name: 'Departments', icon: 'building', route: '/admin/departments', color: '#6366F1' },
               { id: 2, name: 'Requests', icon: 'list', route: '/admin/requests', color: '#F59E0B', count: stats.pendingLetters + stats.identityRequests },
-              { id: 3, name: 'Notice Board', icon: 'bullhorn', route: '/admin/notice', color: '#EF4444', count: stats.activeNotices },
-              { id: 4, name: 'Documents', icon: 'folder-open', route: '/admin/documents', color: '#475569' },
-              { id: 5, name: 'Attendance', icon: 'chart-bar', route: '/admin/attendance_report', color: '#ef4444' },
+              { id: 3, name: 'Notice Board', icon: 'bullhorn', route: '/admin/notice', color: '#EF4444', count: badges?.notices || 0 },
+              { id: 4, name: 'Documents', icon: 'folder-open', route: '/admin/documents', color: '#475569', count: badges?.materials || 0 },
+              { id: 5, name: 'Attendance', icon: 'chart-bar', route: '/admin/attendance_report', color: '#B45309' },
               { id: 6, name: 'Time Table', icon: 'calendar-alt', route: '/admin/timetable', color: '#3b82f6' },
               { id: 7, name: 'Bulk Upload', icon: 'file-upload', route: '/admin/bulk_upload', color: '#EC4899' },
-              { id: 8, name: 'Add Staff', icon: 'user-tie', route: '/admin/createstaff', color: '#8B5CF6' },
-              { id: 9, name: 'Add Student', icon: 'user-graduate', route: '/admin/createstudent', color: '#f97316' },
-              { id: 10, name: 'System Admin', icon: 'cogs', route: '/admin/django_admin', color: '#64748b' },
+              { id: 8, name: 'Staff List', icon: 'users', route: '/admin/staff_list', color: '#8B5CF6' },
+              { id: 9, name: 'Student List', icon: 'user-graduate', route: '/admin/student_list', color: '#f97316' },
+              { id: 10, name: 'Dept Admins', icon: 'user-shield', route: '/admin/dept_admin_list', color: '#10B981' },
+              { id: 11, name: 'Add User', icon: 'user-plus', route: '/admin/create_user', color: '#6366F1' },
+              { id: 12, name: 'System Admin', icon: 'cogs', route: '/admin/django_admin', color: '#64748b' },
             ].map(service => (
               <TouchableOpacity
                 key={service.id}

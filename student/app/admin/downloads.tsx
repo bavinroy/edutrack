@@ -9,7 +9,6 @@ import {
     Platform,
     StyleSheet,
     StatusBar,
-    ActivityIndicator,
     Dimensions
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +17,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -158,7 +158,7 @@ export default function AdminDownloads() {
                 </View>
 
                 {loading ? (
-                    <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                    <View style={styles.center}><EduLoading size={60} /></View>
                 ) : (
                     <FlatList
                         data={files}

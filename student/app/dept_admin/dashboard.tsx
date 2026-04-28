@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
   StatusBar,
@@ -19,6 +18,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +35,7 @@ export default function DeptAdminDashboard() {
     activeNotices: 0,
     pendingTimetables: 0
   });
+  const [badges, setBadges] = useState<any>({});
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
 
   const fetchAllData = async () => {
@@ -46,8 +47,7 @@ export default function DeptAdminDashboard() {
       }
       const headers = { Authorization: `Bearer ${token}` };
 
-      // We catch individually to prevent one failure from breaking the whole dashboard
-      const [profRes, reqRes, identityRes, noticeRes, timetableRes] = await Promise.all([
+      const results = await Promise.all([
         axios.get(`${API_BASE_URL}/api/staff/profile/`, { headers }).catch(e => {
             console.error("Profile Fetch Error:", e);
             return { data: profile || {} };
@@ -67,8 +67,12 @@ export default function DeptAdminDashboard() {
         axios.get(`${API_BASE_URL}/api/accounts/timetables/pending/`, { headers }).catch(e => {
             console.error("Timetable Fetch Error:", e);
             return { data: [] };
+        }),
+        axios.get(`${API_BASE_URL}/api/accounts/badges/`, { headers }).catch(e => {
+            return { data: {} };
         })
       ]);
+      const [profRes, reqRes, identityRes, noticeRes, timetableRes, badgeRes] = results;
 
       if (profRes && profRes.data) {
         const profData = profRes.data;
@@ -84,6 +88,7 @@ export default function DeptAdminDashboard() {
         activeNotices: Array.isArray(noticeRes.data) ? noticeRes.data.length : 0,
         pendingTimetables: Array.isArray(timetableRes.data) ? timetableRes.data.length : 0
       });
+      setBadges(badgeRes?.data || {});
 
     } catch (err) {
       console.error("Dept Admin dashboard critical error", err);
@@ -112,7 +117,7 @@ export default function DeptAdminDashboard() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <EduLoading size={80} />
         <Text style={[styles.loaderText, { color: themeColors.subText }]}>Initializing Admin Portal...</Text>
       </View>
     );
@@ -272,11 +277,11 @@ export default function DeptAdminDashboard() {
             { id: 3, name: 'Student List', icon: 'user-graduate', route: '/dept_admin/student_biodata', color: '#10B981' },
             { id: 4, name: 'Timetables', icon: 'calendar-alt', route: '/dept_admin/timetable', color: '#8B5CF6', tag: stats.pendingTimetables > 0 ? 'Review' : null },
             { id: 5, name: 'Attendance', icon: 'chart-bar', route: '/dept_admin/attendance_report', color: '#3B82F6' },
-            { id: 6, name: 'Notice Board', icon: 'bullhorn', route: '/dept_admin/notice', color: '#EF4444' },
+            { id: 6, name: 'Notice Board', icon: 'bullhorn', route: '/dept_admin/notice', color: '#EF4444', count: badges?.notices || 0 },
             { id: 7, name: 'Bulk Upload', icon: 'file-upload', route: '/dept_admin/bulk_upload', color: '#EC4899' },
             { id: 8, name: 'Class Advisors', icon: 'user-shield', route: '/dept_admin/class_advisors', color: '#64748B' },
             { id: 9, name: 'Subjects', icon: 'book', route: '/dept_admin/subjects', color: '#06B6D4' },
-            { id: 10, name: 'Documents', icon: 'folder-open', route: '/dept_admin/documents', color: '#475569' },
+            { id: 10, name: 'Study Materials', icon: 'folder-open', route: '/dept_admin/documents', color: '#475569', count: badges?.materials || 0 },
           ].map(service => (
             <TouchableOpacity 
               key={service.id} 

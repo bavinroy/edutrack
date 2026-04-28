@@ -5,7 +5,6 @@ import {
   FlatList,
   Image,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -24,6 +23,7 @@ import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -297,7 +297,7 @@ export default function StaffNoticeBoard() {
       </View>
 
       {loading && notices.length === 0 ? (
-        <View style={styles.loader}><ActivityIndicator size="large" color="#6366F1" /></View>
+        <View style={styles.loader}><EduLoading size={60} /></View>
       ) : (
         <FlatList
           data={getFilteredNotices()}

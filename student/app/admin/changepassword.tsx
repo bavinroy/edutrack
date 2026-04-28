@@ -9,8 +9,7 @@ import {
   Alert,
   ScrollView,
   StatusBar,
-  Dimensions,
-  ActivityIndicator
+  Dimensions
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import axios from "axios";
 
 const { width } = Dimensions.get("window");
@@ -150,7 +150,7 @@ export default function StaffChangePasswordScreen() {
             disabled={loading}
             activeOpacity={0.8}
           >
-            {loading ? <ActivityIndicator color="#fff" /> :
+            {loading ? <EduLoading size={25} /> :
               <>
                 <Text style={styles.provisionTxt}>SAVE PASSWORD</Text>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />

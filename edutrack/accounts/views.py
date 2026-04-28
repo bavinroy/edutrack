@@ -479,19 +479,7 @@ class AdminActionView(generics.UpdateAPIView):
 
 
 # 3. Principal see only requests forwarded by Admin (admin="approved" AND principal="pending")
-class PrincipalRequestsListView(generics.ListAPIView):
-    serializer_class = RequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        # User wants "only show dept admin sended to principal letters"
-        # This implies items waiting for Principal's action.
-        return Request.objects.filter(admin_status="approved", principal_status="pending").order_by('-created_at')
-
-class PrincipalActionView(generics.UpdateAPIView):
-    queryset = Request.objects.all()
-    serializer_class = PrincipalActionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# Removed duplicates (moved to later in file)
 
     def patch(self, request, *args, **kwargs):
         req = self.get_object()
@@ -1106,7 +1094,40 @@ class UserCreationRequestPreviewView(BulkUploadUsersView):
                  department_override=req.department
              )
         except Exception as e:
-             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserBadgesView(APIView):
+    """
+    Returns counts of unread notifications grouped by category (target_url).
+    Used to display badges on dashboard icons.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        unread = user.notifications.filter(is_read=False)
+        
+        badges = {
+            "notices": 0,
+            "requests": 0,
+            "messages": 0,
+            "materials": 0,
+            "total": unread.count()
+        }
+
+        for n in unread:
+            url = n.target_url.lower() if n.target_url else ""
+            if "notice" in url:
+                badges["notices"] += 1
+            elif "request" in url or "letter" in url:
+                badges["requests"] += 1
+            elif "message" in url or "chat" in url:
+                badges["messages"] += 1
+            elif "document" in url or "material" in url:
+                badges["materials"] += 1
+
+        return Response(badges, status=status.HTTP_200_OK)
+
 
 # Admin: List Requests
 class UserCreationRequestListView(generics.ListAPIView):

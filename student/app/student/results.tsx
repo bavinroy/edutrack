@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   SafeAreaView,
   StatusBar,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 export default function StudentResult() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function StudentResult() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <EduLoading size={60} />
       </View>
     );
   }

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Modal,
   TextInput,
@@ -20,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 import { useTheme } from "../../context/ThemeContext";
 import StaffBottomNav from "../../components/StaffBottomNav";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -118,7 +118,7 @@ export default function MySchedule() {
 
   if (loading) return (
     <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-      <ActivityIndicator size="large" color="#6366F1" />
+      <EduLoading size={60} />
     </View>
   );
 

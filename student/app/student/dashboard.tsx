@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
   Platform,
@@ -18,6 +17,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config";
 import StudentBottomNav from "../../components/StudentBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -26,6 +26,7 @@ export default function StudentDashboard() {
   const { isDark, theme: themeColors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  const [badges, setBadges] = useState<any>({});
 
   // Settings State
   const [showCGPA, setShowCGPA] = useState(false);
@@ -43,13 +44,17 @@ export default function StudentDashboard() {
     try {
       const token = await AsyncStorage.getItem("accessToken");
       if (!token) return;
-      const res = await axios.get(`${API_BASE_URL}/api/student/dashboard/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProfileData(res.data);
+      
+      const headers = { Authorization: `Bearer ${token}` };
+      const [dashRes, badgeRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/student/dashboard/`, { headers }),
+        axios.get(`${API_BASE_URL}/api/accounts/badges/`, { headers }).catch(() => ({ data: {} }))
+      ]);
+      
+      setProfileData(dashRes.data);
+      setBadges(badgeRes.data);
     } catch (err: any) {
       console.error("Dashboard fetch error", err);
-      // If unauthorized, redirect to login
       if (err.response?.status === 401) {
         router.replace("/");
       }
@@ -77,7 +82,7 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <EduLoading size={80} />
         <Text style={[styles.loaderText, { color: themeColors.subText }]}>Loading Dashboard...</Text>
       </View>
     );
@@ -194,15 +199,21 @@ export default function StudentDashboard() {
         <View style={styles.actionGrid}>
           {[
             { icon: 'time-outline', name: 'Time Table', route: '/student/timetable', color: '#8B5CF6' },
-            { icon: 'document-text-outline', name: 'Materials', route: '/student/documents', color: '#10B981' },
+            { icon: 'document-text-outline', name: 'Materials', route: '/student/documents', color: '#10B981', count: badges.materials },
             { icon: 'trophy-outline', name: 'Results', route: '/student/results', color: '#F59E0B' },
             { icon: 'wallet-outline', name: 'Fee Details', route: '/student/fees', color: '#EF4444' },
-            { icon: 'mail-open-outline', name: 'Requests', route: '/student/requests', color: '#3B82F6' },
+            { icon: 'mail-open-outline', name: 'Requests', route: '/student/requests', color: '#3B82F6', count: badges.requests },
+            { icon: 'megaphone-outline', name: 'Notices', route: '/student/notice', color: '#EC4899', count: badges.notices },
             { icon: 'list-circle-outline', name: 'Forms', route: '/student/letter', color: '#6366F1' },
           ].map((action, idx) => (
             <TouchableOpacity key={idx} style={[styles.actionBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]} onPress={() => handleNav(action.route)}>
               <View style={[styles.actionIconBox, { backgroundColor: `${action.color}15` }]}>
                 <Ionicons name={action.icon as any} size={28} color={action.color} />
+                {action.count !== undefined && action.count > 0 && (
+                  <View style={[styles.serviceBadge, { backgroundColor: '#EF4444' }]}>
+                    <Text style={styles.serviceBadgeText}>{action.count}</Text>
+                  </View>
+                )}
               </View>
               <Text style={[styles.actionText, { color: themeColors.subText }]}>{action.name}</Text>
             </TouchableOpacity>
@@ -300,5 +311,7 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   actionIconBox: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  actionText: { fontSize: 11, fontWeight: '700', textAlign: 'center' }
+  actionText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  serviceBadge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: '#fff' },
+  serviceBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' }
 });

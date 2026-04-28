@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    ActivityIndicator,
     Alert,
     ScrollView,
     Modal,
@@ -20,6 +19,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -39,7 +39,9 @@ export default function BulkUploadScreen() {
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setFile(result.assets[0]);
             }
-        } catch (err) { console.log(err); }
+        } catch (err) { 
+            // console.log(err); 
+        }
     };
 
     const handleUpload = async () => {
@@ -152,7 +154,7 @@ export default function BulkUploadScreen() {
               disabled={!file || loading}
               activeOpacity={0.8}
             >
-              {loading ? <ActivityIndicator color="#fff" /> :
+              {loading ? <EduLoading size={25} /> :
                 <>
                   <Text style={styles.executeTxt}>UPLOAD NOW</Text>
                   <Ionicons name="cloud-upload" size={20} color="#fff" />

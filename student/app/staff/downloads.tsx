@@ -67,7 +67,7 @@ export default function StaffDownloads() {
     const loadDownloads = async () => {
         try {
             if (!downloadDir) {
-                console.log("File system not accessible or running on Web.");
+                // console.log("File system not accessible or running on Web.");
                 return;
             }
 

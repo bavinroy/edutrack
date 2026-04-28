@@ -10,7 +10,6 @@ import {
   SafeAreaView,
   Alert,
   StatusBar,
-  ActivityIndicator,
   Modal,
   Dimensions,
 } from "react-native";
@@ -22,6 +21,7 @@ import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
 import axios from "axios";
 import StaffBottomNav from "../../components/StaffBottomNav";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -152,7 +152,7 @@ export default function StaffProfileScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <EduLoading size={60} />
       </View>
     );
   }
@@ -184,7 +184,7 @@ export default function StaffProfileScreen() {
                   )}
                   <View style={styles.camBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
                </TouchableOpacity>
-               {updating && <ActivityIndicator size="small" color="#6366F1" style={styles.loaderPos} />}
+               {updating && <EduLoading size={25} />}
             </View>
             <Text style={[styles.userName, { color: themeColors.text }]}>{profile.first_name || profile.username} {profile.last_name}</Text>
             <View style={[styles.roleBadge, { backgroundColor: '#6366F115' }]}>

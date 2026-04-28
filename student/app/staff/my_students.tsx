@@ -4,7 +4,6 @@ import {
     Text,
     FlatList,
     StyleSheet,
-    ActivityIndicator,
     TouchableOpacity,
     Image,
 } from "react-native";
@@ -14,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { theme } from "../theme";
 import StaffBottomNav from "../../components/StaffBottomNav";
+import EduLoading from "../../components/EduLoading";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MyStudentsScreen() {
@@ -33,9 +33,14 @@ export default function MyStudentsScreen() {
             const token = await AsyncStorage.getItem("accessToken");
             if (!token) return;
 
-            let url = `${API_BASE_URL}/api/academic/students/?department=${department}&year=${year}`;
-            if (section) {
-                url += `&section=${section}`;
+            let url = `${API_BASE_URL}/api/academic/students/`;
+            const paramsList = [];
+            if (department && department !== 'undefined') paramsList.push(`department=${department}`);
+            if (year && year !== 'undefined') paramsList.push(`year=${year}`);
+            if (section && section !== 'undefined') paramsList.push(`section=${section}`);
+            
+            if (paramsList.length > 0) {
+                url += `?${paramsList.join('&')}`;
             }
 
             const res = await fetch(url, {
@@ -79,13 +84,13 @@ export default function MyStudentsScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{className || "My Students"}</Text>
+                <Text style={styles.headerTitle}>{className || "Department Students"}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <EduLoading size={60} />
                 </View>
             ) : (
                 <FlatList
@@ -95,7 +100,7 @@ export default function MyStudentsScreen() {
                     contentContainerStyle={styles.list}
                     ListEmptyComponent={
                         <View style={styles.center}>
-                            <Text style={{ color: "#999" }}>No students found in this class.</Text>
+                            <Text style={{ color: "#999" }}>No students found.</Text>
                         </View>
                     }
                 />

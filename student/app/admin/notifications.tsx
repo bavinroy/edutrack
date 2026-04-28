@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   StatusBar,
   FlatList,
   TouchableOpacity,
@@ -17,6 +16,7 @@ import axios from "axios";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 type Notification = {
   id: number;
@@ -44,7 +44,7 @@ export default function AdminNotifications() {
       });
       setNotifications(res.data);
     } catch (err) {
-      console.log(err);
+      // console.log(err);
     } finally {
       setLoading(false);
       setFetching(false);
@@ -80,7 +80,7 @@ export default function AdminNotifications() {
         try {
             router.push(item.target_url as any);
         } catch (e) {
-            console.log("Nav failed");
+            // console.log("Nav failed");
         }
     }
   };
@@ -123,7 +123,7 @@ export default function AdminNotifications() {
 
         {loading ? (
           <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#6366F1" />
+            <EduLoading size={60} />
           </View>
         ) : (
           <FlatList

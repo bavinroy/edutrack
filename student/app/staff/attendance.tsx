@@ -11,7 +11,6 @@ import {
   Modal, 
   Switch, 
   StatusBar, 
-  ActivityIndicator,
   Dimensions,
   RefreshControl,
   SafeAreaView,
@@ -25,6 +24,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchWithAuth } from '../../lib/api_helper';
 import { useTheme } from "../../context/ThemeContext";
 import StaffBottomNav from "../../components/StaffBottomNav";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -163,7 +163,7 @@ export default function AttendanceMarking() {
   if (initialLoading) {
     return (
       <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <EduLoading size={60} />
       </View>
     );
   }
@@ -276,7 +276,7 @@ export default function AttendanceMarking() {
 
           <TouchableOpacity style={styles.primaryBtn} onPress={fetchStudents}>
              <Text style={styles.primaryBtnText}>PREPARE ROLL CALL</Text>
-             {loading && <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 10 }} />}
+             {loading && <EduLoading size={25} />}
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />

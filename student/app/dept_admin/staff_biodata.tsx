@@ -6,7 +6,6 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    ActivityIndicator,
     StatusBar,
     Dimensions,
     Linking
@@ -18,6 +17,7 @@ import { API_BASE_URL } from "../config";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -50,7 +50,7 @@ export default function StaffBiodataScreen() {
     if (loading) {
         return (
             <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-                <ActivityIndicator size="large" color="#6366F1" />
+                <EduLoading size={60} />
             </View>
         );
     }

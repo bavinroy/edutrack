@@ -4,7 +4,6 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
+import EduLoading from "../../components/EduLoading";
 
 type TimeTable = {
   id: number;
@@ -92,7 +92,7 @@ export default function StudentTimetable() {
         setTimetables([]);
       }
     } catch (err) {
-      console.log(err);
+      // console.log(err);
       // Alert.alert("Error", "Could not fetch timetables");
     } finally {
       setLoading(false);
@@ -107,8 +107,8 @@ export default function StudentTimetable() {
         style={styles.bg}
       >
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.loadingText}>Loading timetables...</Text>
+          <EduLoading size={60} />
+          <Text style={styles.loadingText}>Syncing schedule...</Text>
         </View>
       </ImageBackground>
     );

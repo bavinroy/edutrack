@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
   StatusBar,
@@ -19,6 +18,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -33,6 +33,7 @@ export default function StaffDashboard() {
   const [nextClass, setNextClass] = useState<any>(null);
   const [advisory, setAdvisory] = useState<any>(null);
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
+  const [badges, setBadges] = useState<any>({});
 
   const fetchAllData = async () => {
     try {
@@ -40,11 +41,12 @@ export default function StaffDashboard() {
       if (!token) return;
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [profRes, reqRes, nextRes, advRes] = await Promise.all([
+      const [profRes, reqRes, nextRes, advRes, badgeRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/staff/profile/`, { headers }),
         axios.get(`${API_BASE_URL}/api/request/staff/list/`, { headers }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/api/academic/schedule/upcoming/`, { headers }).catch(() => null),
-        axios.get(`${API_BASE_URL}/api/academic/class-advisors/my_advisory/`, { headers }).catch(() => null)
+        axios.get(`${API_BASE_URL}/api/academic/class-advisors/my_advisory/`, { headers }).catch(() => null),
+        axios.get(`${API_BASE_URL}/api/accounts/badges/`, { headers }).catch(() => ({ data: {} }))
       ]);
 
       const profData = profRes.data;
@@ -58,7 +60,8 @@ export default function StaffDashboard() {
 
       if (nextRes && nextRes.status === 200) setNextClass(nextRes.data);
       if (advRes && advRes.status === 200 && advRes.data.assigned) setAdvisory(advRes.data);
-
+      
+      setBadges(badgeRes.data);
     } catch (err) {
       console.error("Staff dashboard fetch error", err);
     } finally {
@@ -85,7 +88,7 @@ export default function StaffDashboard() {
   if (loading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <EduLoading size={80} />
         <Text style={[styles.loaderText, { color: themeColors.subText }]}>Initializing Faculty Portal...</Text>
       </View>
     );
@@ -230,10 +233,11 @@ export default function StaffDashboard() {
             { id: 2, name: 'My Schedule', icon: 'clock', route: '/staff/my_schedule', color: '#6366F1' },
             { id: 3, name: 'Attendance', icon: 'user-check', route: '/staff/attendance', color: '#10B981', tag: 'Live' },
             { id: 4, name: 'Requests', icon: 'envelope-open-text', route: '/staff/requests', color: '#F59E0B', count: requests.length },
-            { id: 5, name: 'Study Materials', icon: 'book', route: '/staff/documents', color: '#3B82F6' },
-            { id: 6, name: 'Notice Board', icon: 'bullhorn', route: '/staff/notice', color: '#EF4444' },
+            { id: 5, name: 'Study Materials', icon: 'book', route: '/staff/documents', color: '#3B82F6', count: badges.materials },
+            { id: 6, name: 'Notice Board', icon: 'bullhorn', route: '/staff/notice', color: '#EF4444', count: badges.notices },
             { id: 7, name: 'Bulk Ops', icon: 'file-upload', route: '/staff/bulk_upload', color: '#EC4899' },
-            { id: 8, name: 'My Students', icon: 'users', route: '/staff/my_students', color: '#64748B', hide: !advisory },
+            { id: 8, name: 'My Class', icon: 'users', route: advisory ? `/staff/my_students?department=${advisory.department}&year=${advisory.year}&className=${advisory.class_name}` : '/staff/my_students', color: '#64748B', hide: !advisory },
+            { id: 9, name: 'Dept Students', icon: 'user-graduate', route: '/staff/my_students', color: '#0EA5E9' },
           ].filter(s => !s.hide).map(service => (
             <TouchableOpacity 
               key={service.id} 

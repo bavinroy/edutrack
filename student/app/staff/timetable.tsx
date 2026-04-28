@@ -12,7 +12,6 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   FlatList,
   RefreshControl,
 } from "react-native";
@@ -23,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
 import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -129,7 +129,7 @@ export default function StaffTimetableEditor() {
         }
       }
     } catch (e) {
-      console.log("Failed to fetch dept", e);
+      // console.log("Failed to fetch dept", e);
     }
   };
 
@@ -149,7 +149,7 @@ export default function StaffTimetableEditor() {
         setSavedTimetables(data);
       }
     } catch (e) {
-      console.log("Fetch saved error", e);
+      // console.log("Fetch saved error", e);
     } finally {
       setRefreshing(false);
     }
@@ -341,7 +341,7 @@ export default function StaffTimetableEditor() {
     } catch (e) {
       setUploading(false);
       Alert.alert("Error", "Upload failed.");
-      console.log(e);
+      // console.log(e);
     }
   };
 
@@ -661,7 +661,7 @@ export default function StaffTimetableEditor() {
           {viewMode === 'editor' && (
             <>
               <TouchableOpacity onPress={pickAndParseFile} style={{ marginRight: 15 }}>
-                {uploading ? <ActivityIndicator size="small" color="#00796b" /> : <Ionicons name="cloud-upload-outline" size={24} color="#00796b" />}
+                {uploading ? <EduLoading size={24} /> : <Ionicons name="cloud-upload-outline" size={24} color="#00796b" />}
               </TouchableOpacity>
               <TouchableOpacity onPress={saveTimetable}><Ionicons name="save-outline" size={24} color="#00796b" /></TouchableOpacity>
             </>

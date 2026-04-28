@@ -11,6 +11,7 @@ from accounts.views import CreateDeptAdminView, CreateDeptStaffView, CreateDeptS
 from accounts.views import DepartmentListCreateView, DepartmentDetailView
 
 from accounts.views_notifications import NotificationListView, MarkNotificationReadView, MarkAllNotificationsReadView, RegisterPushTokenView
+from accounts.views_auth import PasswordResetRequestView, PasswordResetVerifyView, PasswordResetConfirmView
 
 urlpatterns = [
     # Notifications
@@ -24,6 +25,11 @@ urlpatterns = [
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("change-password/", views.ChangePasswordView.as_view(), name="change-password"),
     path("active-sessions/", views.ActiveSessionsView.as_view(), name="active-sessions"),
+
+    # Password Reset
+    path("password-reset/request/", PasswordResetRequestView.as_view(), name="password-reset-request"),
+    path("password-reset/verify/", PasswordResetVerifyView.as_view(), name="password-reset-verify"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
 
     path("documents/delete/<int:pk>/", DocumentDeleteView.as_view(), name="delete_document"),
     path("documents/upload/", DocumentUploadView.as_view(), name="upload_document"),  # staff
@@ -89,6 +95,7 @@ urlpatterns = [
     path("student/class-advisors/", views.StudentClassAdvisorListView.as_view(), name="student-class-advisors"),
 
     path("student/dashboard/", views.student_dashboard, name="student-dashboard"),
+    path("badges/", views.UserBadgesView.as_view(), name="user-badges"),
     
     # Account Requests
     path("public/departments/", views.public_department_list, name="public-department-list"),

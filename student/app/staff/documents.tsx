@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
@@ -23,6 +22,7 @@ import { API_BASE_URL } from "../config";
 import StaffBottomNav from "../../components/StaffBottomNav";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -97,19 +97,19 @@ export default function DocumentLibrary() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       });
 
-      Alert.alert("Success", "Academic asset uploaded.");
+      Alert.alert("Success", "Study material uploaded.");
       setUploadModalVisible(false);
       setTitle(""); setSubjectName(""); setSubjectCode(""); setFile(null);
       fetchDocuments();
     } catch (err) {
-      Alert.alert("Upload Error", "Failed to sync document.");
+      Alert.alert("Upload Error", "Failed to sync material.");
     } finally { setUploading(false); }
   };
 
   const confirmDelete = (id: number) => {
-    Alert.alert("Purge Document", "Permanently remove this academic asset?", [
+    Alert.alert("Delete Material", "Permanently remove this study material?", [
       { text: "Cancel" },
-      { text: "Purge", style: "destructive", onPress: async () => {
+      { text: "Delete", style: "destructive", onPress: async () => {
           const token = await AsyncStorage.getItem("accessToken");
           await axios.delete(`${API_BASE_URL}/api/accounts/documents/delete/${id}/`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -149,7 +149,7 @@ export default function DocumentLibrary() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Study Assets</Text>
+        <Text style={[styles.headerTitle, { color: themeColors.text }]}>Study Materials</Text>
         <TouchableOpacity style={styles.uploadTrigger} onPress={() => setUploadModalVisible(true)}>
           <Ionicons name="cloud-upload" size={24} color="#6366F1" />
         </TouchableOpacity>
@@ -189,7 +189,7 @@ export default function DocumentLibrary() {
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={styles.listBody}
         refreshControl={<RefreshControl refreshing={fetching} onRefresh={fetchDocuments} colors={["#6366F1"]} />}
-        ListHeaderComponent={<Text style={[styles.sectionTitle, { color: themeColors.subText }]}>RECENTLY ADDED ASSETS</Text>}
+        ListHeaderComponent={<Text style={[styles.sectionTitle, { color: themeColors.subText }]}>RECENTLY ADDED MATERIALS</Text>}
         renderItem={({ item }) => {
           const style = getFileStyle(item.file);
           return (
@@ -215,7 +215,7 @@ export default function DocumentLibrary() {
         ListEmptyComponent={
           <View style={styles.emptyShell}>
              <Ionicons name="document-text-outline" size={60} color={themeColors.border} />
-             <Text style={[styles.emptyText, { color: themeColors.subText }]}>No documents found matching your criteria.</Text>
+             <Text style={[styles.emptyText, { color: themeColors.subText }]}>No study materials found.</Text>
           </View>
         }
       />
@@ -224,14 +224,14 @@ export default function DocumentLibrary() {
       <Modal visible={uploadModalVisible} animationType="slide">
         <SafeAreaView style={[styles.modalArea, { backgroundColor: themeColors.bg }]}>
            <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
-              <Text style={[styles.modalTitle, { color: themeColors.text }]}>Publish Study Asset</Text>
+              <Text style={[styles.modalTitle, { color: themeColors.text }]}>Upload Study Material</Text>
               <TouchableOpacity onPress={() => setUploadModalVisible(false)} style={styles.closeModal}>
                  <Ionicons name="close" size={24} color={themeColors.text} />
               </TouchableOpacity>
            </View>
 
            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>DOCUMENT TITLE</Text>
+              <Text style={styles.inputLabel}>MATERIAL TITLE</Text>
               <TextInput 
                  style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }]}
                  placeholder="e.g. Unit 3: Thermodynamics Notes"
@@ -269,7 +269,7 @@ export default function DocumentLibrary() {
                     <Ionicons name={file ? "checkmark-circle" : "document-attach"} size={28} color={file ? "#10B981" : "#6366F1"} />
                  </View>
                  <View style={styles.pickerInfo}>
-                    <Text style={[styles.pickerTitle, { color: themeColors.text }]}>{file ? file.name : "Select Document File"}</Text>
+                    <Text style={[styles.pickerTitle, { color: themeColors.text }]}>{file ? file.name : "Select Material File"}</Text>
                     <Text style={styles.pickerMeta}>{file ? `${(file.size!/1024).toFixed(1)} KB` : "Supports PDF, DOC, XLS (MAX 50MB)"}</Text>
                  </View>
               </TouchableOpacity>
@@ -279,7 +279,7 @@ export default function DocumentLibrary() {
                  disabled={!file || !title || uploading}
                  onPress={uploadFile}
               >
-                 {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.publishBtnText}>PUBLISH TO STUDENTS</Text>}
+                 {uploading ? <EduLoading size={25} /> : <Text style={styles.publishBtnText}>UPLOAD MATERIAL</Text>}
               </TouchableOpacity>
            </ScrollView>
         </SafeAreaView>

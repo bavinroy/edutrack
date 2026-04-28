@@ -9,7 +9,6 @@ import {
     Platform,
     StyleSheet,
     StatusBar,
-    ActivityIndicator
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system";
@@ -17,6 +16,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 // Helper: detect MIME type
@@ -158,7 +158,7 @@ export default function DeptAdminDownloads() {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#6366F1" />
+                    <EduLoading size={60} />
                 </View>
             ) : (
                 <FlatList

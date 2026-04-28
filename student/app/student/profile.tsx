@@ -11,7 +11,6 @@ import {
   Alert,
   Platform,
   StatusBar,
-  ActivityIndicator,
   Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +19,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 export default function StudentProfileScreen() {
   const router = useRouter();
@@ -206,7 +206,7 @@ export default function StudentProfileScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: themeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <EduLoading size={60} />
       </View>
     );
   }
@@ -280,7 +280,7 @@ export default function StudentProfileScreen() {
                 <Text style={[styles.suiteLab, { color: themeColors.subText }]}>PERSONAL DETAILS</Text>
                 <TouchableOpacity onPress={() => { if(isEditing) handleUpdateProfile(); else setIsEditing(true); }}>
                     {updating ? (
-                        <ActivityIndicator size="small" color="#3B82F6" />
+                        <EduLoading size={25} />
                     ) : (
                         <Text style={[styles.editBtnText, { color: isEditing ? '#10B981' : '#3B82F6' }]}>{isEditing ? "SAVE" : "EDIT"}</Text>
                     )}

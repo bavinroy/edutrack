@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import {
     View, Text, StyleSheet, TouchableOpacity, FlatList,
-    ActivityIndicator, StatusBar, Dimensions, Image, RefreshControl, Alert
+    StatusBar, Dimensions, Image, RefreshControl, Alert
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import axios from "axios";
 
 const { width } = Dimensions.get("window");
@@ -162,7 +163,7 @@ export default function DepartmentDetails() {
                 </View>
 
                 {loading && !fetching ? (
-                    <View style={styles.center}><ActivityIndicator color="#6366F1" size="large" /></View>
+                    <View style={styles.center}><EduLoading size={60} /></View>
                 ) : (
                     <FlatList
                         data={users}

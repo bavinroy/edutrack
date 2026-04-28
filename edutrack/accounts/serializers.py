@@ -64,13 +64,34 @@ class UserCreateSerializer(serializers.ModelSerializer):
     Specialized serializer for admin-created users with department link.
     """
     year = serializers.IntegerField(required=False, allow_null=True)
+    # Student specific fields
+    semester = serializers.IntegerField(required=False, allow_null=True)
+    section = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    register_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    course = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    mobile_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    dob = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    blood_group = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    aadhaar_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    father_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    mother_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    parent_contact = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tenth_marks = serializers.FloatField(required=False, allow_null=True)
+    twelfth_marks = serializers.FloatField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password", "department_id", "role", "year"]
+        fields = [
+            "id", "username", "email", "password", "department_id", "role", "year",
+            "first_name", "last_name", "semester", "section", "register_number",
+            "course", "mobile_number", "dob", "gender", "blood_group",
+            "aadhaar_number", "address", "father_name", "mother_name",
+            "parent_contact", "tenth_marks", "twelfth_marks"
+        ]
 
     def validate(self, data):
-        # If creating a student, 'year', 'first_name', 'last_name', and 'department' are mandatory
         if data.get('role') == User.Roles.DEPT_STUDENT:
              if not data.get('year'):
                  raise serializers.ValidationError({"year": "Year is required for students."})
@@ -79,11 +100,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
              if not data.get('last_name'):
                  raise serializers.ValidationError({"last_name": "Last Name is required for students."})
              
-             # Check department: either in data OR already in instance (not applicable for create) OR via context?
-             # NOTE: Views assign department via serializer.save() kwargs if the user is Dept Admin.
-             # But validating existence here checks 'data'. 
-             # Only strictly require it in 'data' if the request user is SUPER_ADMIN/PRINCIPAL who must select it.
-             # However, serializer context has 'request'.
              request = self.context.get('request')
              if request and request.user.role in [User.Roles.SUPER_ADMIN, User.Roles.PRINCIPAL]:
                  if not data.get('department_id'):
@@ -92,7 +108,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        year_val = validated_data.pop("year", None)
+        
+        # Extract student specific fields
+        student_fields = [
+            "year", "semester", "section", "register_number", "course",
+            "mobile_number", "dob", "gender", "blood_group", "aadhaar_number",
+            "address", "father_name", "mother_name", "parent_contact",
+            "tenth_marks", "twelfth_marks"
+        ]
+        student_data = {field: validated_data.pop(field, None) for field in student_fields}
         
         user = User(**validated_data)
         user.set_password(password)
@@ -100,12 +124,20 @@ class UserCreateSerializer(serializers.ModelSerializer):
         
         # If student, create Student entry
         if user.role == User.Roles.DEPT_STUDENT:
+             user.refresh_from_db()  # Ensure department and other DB-defaulted fields are synced
              Student.objects.create(
                  user=user,
-                 roll_no=user.username, # Default roll no to username
-                 year=year_val,
-                 course=user.department.name if user.department else "General",
-                 department=user.department # Important: Link department to Student model
+                 roll_no=user.username,
+                 department=user.department,
+                 **student_data
+             )
+        # If staff or dept admin, create StaffProfile entry
+        elif user.role in [User.Roles.DEPT_STAFF, User.Roles.DEPT_ADMIN]:
+             from Staff_profile.models import StaffProfile
+             StaffProfile.objects.create(
+                 user=user,
+                 department=user.department.name if user.department else "General",
+                 designation="HOD" if user.role == User.Roles.DEPT_ADMIN else "Staff"
              )
         
         return user

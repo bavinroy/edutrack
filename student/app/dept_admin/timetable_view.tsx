@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-  ActivityIndicator,
   StatusBar,
   Dimensions
 } from "react-native";
@@ -17,6 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -44,7 +44,7 @@ export default function DeptAdminTimetableView() {
         Alert.alert("Error", "Could not retrieve schedule details.");
       }
     } catch (e) {
-      console.log("Fetch error", e);
+      // console.log("Fetch error", e);
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function DeptAdminTimetableView() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-        <ActivityIndicator color="#6366F1" size="large" />
+        <EduLoading size={60} />
       </View>
     );
   }

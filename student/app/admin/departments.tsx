@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import {
     View, Text, TextInput, TouchableOpacity, FlatList,
-    StyleSheet, Alert, ActivityIndicator, StatusBar,
+    StyleSheet, Alert, StatusBar,
     Dimensions, RefreshControl
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -132,7 +133,7 @@ export default function ManageDepartments() {
                             onPress={handleCreate}
                             disabled={loading}
                         >
-                            {loading ? <ActivityIndicator color="#fff" size="small" /> :
+                            {loading ? <EduLoading size={25} /> :
                                 <Ionicons name="add" size={32} color="#fff" />}
                         </TouchableOpacity>
                     </View>
@@ -147,7 +148,7 @@ export default function ManageDepartments() {
                     </View>
 
                     {fetching ? (
-                        <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                        <View style={styles.center}><EduLoading size={60} /></View>
                     ) : (
                         <FlatList
                             data={departments}

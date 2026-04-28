@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     View, Text, StyleSheet, FlatList, TouchableOpacity, 
     TextInput, Modal, Alert, ScrollView, Switch, StatusBar,
-    ActivityIndicator, Image
+    Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 import axios from 'axios';
 
@@ -339,7 +340,7 @@ export default function StudentBiodata() {
                                         onPress={handleSaveEdits}
                                         disabled={saving}
                                     >
-                                        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.finalSaveText}>Save Changes</Text>}
+                                        {saving ? <EduLoading size={25} /> : <Text style={styles.finalSaveText}>Save Changes</Text>}
                                     </TouchableOpacity>
                                 </View>
                             )}

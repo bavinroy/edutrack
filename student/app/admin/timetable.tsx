@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StatusBar,
@@ -18,6 +17,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -54,7 +54,7 @@ export default function AdminTimetable() {
         setTimetables(data);
       }
     } catch (e) {
-      console.log("Fetch error", e);
+      Alert.alert("Error", "Failed to fetch timetables. Please check your connection.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -146,7 +146,7 @@ export default function AdminTimetable() {
             </View>
           }
           ListEmptyComponent={
-            loading ? <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 50 }} /> :
+            loading ? <EduLoading size={60} /> :
             <View style={styles.empty}>
               <View style={[styles.emptyIconBox, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }]}>
                  <Ionicons name="calendar-outline" size={64} color={themeColors.border} />

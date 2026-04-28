@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ScrollView, ActivityIndicator, StatusBar,
+  Alert, ScrollView, StatusBar,
   KeyboardAvoidingView, Platform, Dimensions
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-ico
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -171,7 +172,7 @@ export default function CreateStudentScreen() {
                 </View>
 
                 <Text style={[styles.clusterLab, { color: themeColors.subText, marginTop: 25 }]}>SELECT DEPARTMENT</Text>
-                {fetchingDepts ? <ActivityIndicator size="small" color="#6366F1" /> : (
+                {fetchingDepts ? <EduLoading size={25} /> : (
                   <View style={styles.deptWrap}>
                     {departments.map((d) => (
                       <TouchableOpacity
@@ -209,7 +210,7 @@ export default function CreateStudentScreen() {
               disabled={loading}
               activeOpacity={0.8}
             >
-              {loading ? <ActivityIndicator color="#fff" /> :
+              {loading ? <EduLoading size={25} /> :
                 <>
                   <Text style={styles.provisionTxt}>CREATE ACCOUNT</Text>
                   <Ionicons name="checkmark-circle" size={20} color="#fff" />

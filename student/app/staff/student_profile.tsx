@@ -5,7 +5,6 @@ import {
     StyleSheet,
     ScrollView,
     Image,
-    ActivityIndicator,
     TouchableOpacity,
     Dimensions,
 } from "react-native";
@@ -14,6 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config";
 import { SafeAreaView } from "react-native-safe-area-context";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -46,7 +46,7 @@ export default function StudentProfileScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color="#2962FF" />
+                <EduLoading size={60} />
             </View>
         );
     }

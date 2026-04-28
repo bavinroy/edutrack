@@ -9,7 +9,6 @@ import {
     ScrollView,
     Alert,
     StatusBar,
-    ActivityIndicator,
     Modal,
     Dimensions
 } from "react-native";
@@ -21,6 +20,7 @@ import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -128,7 +128,7 @@ export default function DeptAdminProfileScreen() {
     if (loading || !profile) {
         return (
             <View style={[styles.center, { backgroundColor: themeColors.bg }]}>
-                <ActivityIndicator size="large" color="#6366F1" />
+                <EduLoading size={60} />
             </View>
         );
     }
@@ -267,7 +267,7 @@ export default function DeptAdminProfileScreen() {
                             onPress={handleUpdate}
                             disabled={updating}
                         >
-                            {updating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnTxt}>Save Changes</Text>}
+                            {updating ? <EduLoading size={25} /> : <Text style={styles.saveBtnTxt}>Save Changes</Text>}
                         </TouchableOpacity>
                     )}
 

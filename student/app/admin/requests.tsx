@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Modal,
   TextInput,
@@ -21,6 +20,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { API_BASE_URL } from "../config";
 import axios from "axios";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 const { width } = Dimensions.get("window");
 
@@ -237,7 +237,7 @@ export default function AdminRequestsScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.center}><ActivityIndicator color="#6366F1" size="large" /></View>
+          <View style={styles.center}><EduLoading size={60} /></View>
         ) : (
           <FlatList
             data={(activeTab === 'letters' ? requests : accountRequests) as any[]}
@@ -310,7 +310,7 @@ export default function AdminRequestsScreen() {
                     onPress={() => currentRequest && handleAction(currentRequest.id, 'approved')}
                     disabled={isProcessing}
                   >
-                    {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnTxtApprove}>APPROVE</Text>}
+                    {isProcessing ? <EduLoading size={25} /> : <Text style={styles.btnTxtApprove}>APPROVE</Text>}
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -367,7 +367,7 @@ export default function AdminRequestsScreen() {
                     onPress={() => currentAccountRequest && handleAccountAction(currentAccountRequest.id, 'approve')}
                     disabled={isProcessing}
                   >
-                    {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnTxtApprove}>APPROVE</Text>}
+                    {isProcessing ? <EduLoading size={25} /> : <Text style={styles.btnTxtApprove}>APPROVE</Text>}
                   </TouchableOpacity>
                 </View>
               </ScrollView>

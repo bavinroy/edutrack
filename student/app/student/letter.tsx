@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   SafeAreaView,
   Modal,
@@ -18,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 
 interface Letter {
   id: number;
@@ -114,7 +114,7 @@ export default function StudentLettersScreen() {
 
         {loading ? (
             <View style={styles.loader}>
-                <ActivityIndicator size="large" color="#3B82F6" />
+                <EduLoading size={60} />
             </View>
         ) : (
             <FlatList

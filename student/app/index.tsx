@@ -1,84 +1,156 @@
-// app/index.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
-  Image,
-  ImageBackground,
   StyleSheet,
-  TouchableOpacity,
+  Animated,
+  Dimensions,
+  Easing,
+  StatusBar,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
+const { height } = Dimensions.get("window");
+
 export default function Index() {
   const router = useRouter();
+  
+  // Animation Values
+  const bodyAnim = useRef(new Animated.Value(-height)).current;
+  const earthAnim = useRef(new Animated.Value(-height)).current;
+  const capAnim = useRef(new Animated.Value(-height)).current;
+  const textFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Pure Vertical Drop Sequence
+    Animated.sequence([
+      Animated.delay(400),
+      
+      // 1. Body Drops (Bottom)
+      Animated.timing(bodyAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.back(1)),
+        useNativeDriver: true,
+      }),
+
+      // 2. Earth Drops (Middle)
+      Animated.timing(earthAnim, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+
+      // 3. Cap Drops (Top)
+      Animated.timing(capAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.bounce),
+        useNativeDriver: true,
+      }),
+
+      // 4. Final Text Reveal
+      Animated.timing(textFade, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+
+      Animated.delay(1800),
+    ]).start(() => {
+      router.replace("./login");
+    });
+  }, []);
 
   return (
-    <ImageBackground
-      source={require(".././assets/images/background.jpeg")} // ✅ adjust path
-      resizeMode="stretch"
-      style={styles.background}
-    >
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centeredContent}>
-          {/* Logo */}
-          <Image
-            source={require(".././assets/images/logo.png")} // ✅ using transparent logo
-            style={styles.logo}
-            resizeMode="contain"
-          />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={styles.content}>
+        
+        <View style={styles.logoWrapper}>
+          
+          {/* Layer 1: The Cap (Top) */}
+          <Animated.View style={[styles.sliceContainer, { height: 72, transform: [{ translateY: capAnim }], zIndex: 10 }]}>
+             <Image 
+                source={require("../assets/images/logo.png")} 
+                style={[styles.logoImage, { marginTop: 0 }]} 
+                resizeMode="contain" 
+             />
+          </Animated.View>
 
+          {/* Layer 2: The Earth (Middle) */}
+          <Animated.View style={[styles.sliceContainer, { height: 60, transform: [{ translateY: earthAnim }], zIndex: 5, marginTop: -2 }]}>
+             <Image 
+                source={require("../assets/images/logo.png")} 
+                style={[styles.logoImage, { marginTop: -72 }]} 
+                resizeMode="contain" 
+             />
+          </Animated.View>
 
+          {/* Layer 3: The Body (Bottom) */}
+          <Animated.View style={[styles.sliceContainer, { height: 75, transform: [{ translateY: bodyAnim }], zIndex: 1, marginTop: -2 }]}>
+             <Image 
+                source={require("../assets/images/logo.png")} 
+                style={[styles.logoImage, { marginTop: -132 }]} 
+                resizeMode="contain" 
+             />
+          </Animated.View>
 
-          {/* Get Started Button */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => router.push("./login")}
-          >
-            <Text style={styles.buttonText}>GET STARTED</Text>
-          </TouchableOpacity>
+          {/* Text Reveal */}
+          <Animated.View style={[styles.textContainer, { opacity: textFade }]}>
+            <Text style={styles.title}>EduTrack</Text>
+            <Text style={styles.subtitle}>Smart Education Platform</Text>
+          </Animated.View>
         </View>
+
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
-  background: {
+  content: {
     flex: 1,
-    padding: 24,
-    justifyContent: "center",
-  },
-  centeredContent: {
     alignItems: "center",
     justifyContent: "center",
   },
-  logo: {
-    width: 160,
-    height: 160,
-    marginBottom: 30,
+  logoWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: '100%',
+  },
+  sliceContainer: {
+    width: 200,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 200,
+    height: 200,
+  },
+  textContainer: {
+    marginTop: 60,
+    alignItems: "center",
   },
   title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#00B9BD",
-    marginBottom: 40,
-    textAlign: "center",
+    fontSize: 42,
+    fontWeight: "900",
+    color: "#000",
+    letterSpacing: -1,
   },
-  button: {
-    backgroundColor: "#00B9BD",
-    paddingHorizontal: 40,
-    paddingVertical: 14,
-    borderRadius: 30,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  subtitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#666",
+    letterSpacing: 2,
+    marginTop: 6,
+    textTransform: "uppercase",
   },
 });

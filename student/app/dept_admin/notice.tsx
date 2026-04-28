@@ -8,7 +8,6 @@ import {
     Image,
     TouchableOpacity,
     StyleSheet,
-    ActivityIndicator,
     ScrollView,
     StatusBar,
     Dimensions,
@@ -25,6 +24,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-ico
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get("window");
@@ -214,7 +214,7 @@ export default function DeptAdminNoticeScreen() {
             </View>
 
             {loading && !refreshing ? (
-                <View style={styles.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+                <View style={styles.center}><EduLoading size={60} /></View>
             ) : (
                 <FlatList
                     data={notices}
@@ -317,7 +317,7 @@ export default function DeptAdminNoticeScreen() {
                                     onPress={handleSubmit}
                                     disabled={isPosting}
                                 >
-                                    {isPosting ? <ActivityIndicator color="#fff" /> :
+                                    {isPosting ? <EduLoading size={25} /> :
                                         <>
                                             <Text style={styles.broadcastTxt}>TRANSMIT NOW</Text>
                                             <Ionicons name="paper-plane" size={18} color="#fff" />

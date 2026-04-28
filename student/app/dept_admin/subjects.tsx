@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     TextInput, Modal, Alert, ScrollView, StatusBar,
-    Dimensions, ActivityIndicator
+    Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import { useTheme } from "../../context/ThemeContext";
+import EduLoading from "../../components/EduLoading";
 import DeptAdminBottomNav from "../../components/DeptAdminBottomNav";
 
 const { width } = Dimensions.get('window');
@@ -247,7 +248,7 @@ export default function SubjectManagement() {
             )}
 
             {loading && !modalVisible ? (
-                <View style={styles.center}><ActivityIndicator color="#6366F1" size="large" /></View>
+                <View style={styles.center}><EduLoading size={60} /></View>
             ) : (
                 <FlatList
                     data={filtered}

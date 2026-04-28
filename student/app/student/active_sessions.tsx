@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useTheme } from '../../context/ThemeContext';
+import EduLoading from '../../components/EduLoading';
 
 interface Session {
   id: string;
@@ -68,7 +69,7 @@ export default function ActiveSessionsScreen() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
+          <EduLoading size={60} />
         ) : (
           sessions.map((session, index) => (
             <View key={index} style={[
