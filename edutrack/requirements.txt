@@ -26,3 +26,6 @@ python-dotenv
 dj-database-url
 gunicorn
 whitenoise
+django-cloudinary-storage
+cloudinary
+requests
