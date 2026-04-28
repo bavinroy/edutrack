@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "EduTrack",
-    "slug": "edutrack",
+    "slug": "student",
     "extra": {
       "eas": {
         "projectId": "1971d323-5a3e-46ce-996a-c8cfc4dc8fd1"
@@ -9,7 +9,7 @@
     },
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/logo.jpeg",
     "scheme": "edutrack",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/images/logo.jpeg",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
