@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { height } = Dimensions.get("window");
 
@@ -60,8 +61,35 @@ export default function Index() {
       }),
 
       Animated.delay(1800),
-    ]).start(() => {
-      router.replace("./login");
+    ]).start(async () => {
+      try {
+        const token = await AsyncStorage.getItem("accessToken");
+        const role = await AsyncStorage.getItem("userRole");
+
+        if (token && role) {
+          switch (role.toUpperCase()) {
+            case "SUPER_ADMIN":
+            case "PRINCIPAL":
+              router.replace("./admin/dashboard");
+              break;
+            case "DEPT_ADMIN":
+              router.replace("./dept_admin/dashboard");
+              break;
+            case "DEPT_STAFF":
+              router.replace("./staff/dashboard");
+              break;
+            case "DEPT_STUDENT":
+              router.replace("./student/dashboard");
+              break;
+            default:
+              router.replace("./login");
+          }
+        } else {
+          router.replace("./login");
+        }
+      } catch (e) {
+        router.replace("./login");
+      }
     });
   }, []);
 
