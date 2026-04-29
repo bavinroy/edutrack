@@ -270,8 +270,8 @@ class ClassAdvisorViewSet(ModelViewSet):
         students_qs = Student.objects.filter(department=dept, year=year)
         count = students_qs.count()
 
-        # Use code if available, else generate formatted name
-        dept_short = dept.code
+        # Use branch if available
+        dept_short = dept.branch
         if not dept_short:
              name = dept.name.strip()
              prefix = ""

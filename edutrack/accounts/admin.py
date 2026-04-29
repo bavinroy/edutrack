@@ -129,8 +129,9 @@ class DepartmentChoiceField(forms.ModelChoiceField):
 
 
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category')
+    list_display = ('name', 'branch', 'category')
     list_filter = ('category',)
+    search_fields = ('name', 'branch')
 
 admin.site.register(Department, DepartmentAdmin)
 

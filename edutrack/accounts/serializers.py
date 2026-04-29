@@ -221,7 +221,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
     hod_name = serializers.CharField(source="hod.username", read_only=True)
     class Meta:
         model = Department
-        fields = ['id', 'name', 'code', 'category', 'hod', 'hod_name']
+        fields = ['id', 'name', 'branch', 'category', 'hod', 'hod_name']
 
 class SubjectSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)

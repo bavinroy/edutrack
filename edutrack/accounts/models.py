@@ -16,12 +16,12 @@ class Department(models.Model):
         ("PG", "Post Graduate"),
     ]
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    branch = models.CharField(max_length=100)
     category = models.CharField(max_length=5, choices=CATEGORY_CHOICES, default="UG")
     hod = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="hod_department")
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        return f"{self.name} - {self.branch}"
 
 class Subject(models.Model):
     TYPE_CHOICES = [
