@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7ay7rr+e%6f--2*cy**%&-=#(y0g#2a2q-k%#k&bpk-lrr4o=4')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
@@ -121,6 +121,7 @@ STORAGES = {
     },
 }
 WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_MAX_AGE = 31536000 # 1 year caching for static assets
 ROOT_URLCONF = 'edutrack.urls'
 
 TEMPLATES = [
@@ -146,7 +147,9 @@ WSGI_APPLICATION = 'edutrack.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'postgres://postgres:bavin@localhost:54321/edutrack')
+        default=os.environ.get('DATABASE_URL', 'postgres://postgres:bavin@localhost:54321/edutrack'),
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
 
