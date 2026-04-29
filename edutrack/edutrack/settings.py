@@ -64,6 +64,7 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "navigation_expanded": False,
     "changeform_format": "single",
+    "show_ui_builder": True,
     "custom_css": "css/custom_admin.css",
     "icons": {
         "accounts.User": "fas fa-users-cog",
@@ -82,7 +83,15 @@ JAZZMIN_UI_TWEAKS = {
     "accent": "accent-primary",
     "navbar_fixed": True,
     "sidebar_fixed": True,
-    "actions_sticky_top": True
+    "actions_sticky_top": True,
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
 
 AUTH_USER_MODEL = 'accounts.User'
