@@ -116,6 +116,13 @@ class UpdateStudentProfileSerializer(serializers.ModelSerializer):
             for attr, value in user_data.items():
                 setattr(user, attr, value)
             user.save()
+
+            # SYNC: If avatar is being updated, also update the accounts.Student model
+            if 'avatar' in validated_data:
+                new_avatar = validated_data['avatar']
+                if hasattr(user, 'student_account') and user.student_account:
+                    user.student_account.avatar = new_avatar
+                    user.student_account.save()
             
         return super().update(instance, validated_data)
 

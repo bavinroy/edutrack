@@ -48,6 +48,10 @@ class UserSerializer(serializers.ModelSerializer):
         if not avatar_path and hasattr(obj, "admin_profile") and obj.admin_profile and obj.admin_profile.avatar:
             avatar_path = obj.admin_profile.avatar.url
 
+        # Priority 4: Check Student Profile (Fallback)
+        if not avatar_path and hasattr(obj, "student_profile") and obj.student_profile and obj.student_profile.avatar:
+            avatar_path = obj.student_profile.avatar.url
+
         if avatar_path and request:
             return request.build_absolute_uri(avatar_path)
         return avatar_path
