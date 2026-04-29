@@ -120,6 +120,7 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+WHITENOISE_MANIFEST_STRICT = False
 ROOT_URLCONF = 'edutrack.urls'
 
 TEMPLATES = [
