@@ -106,8 +106,10 @@ export default function DeptAdminDocuments() {
             setModalVisible(false);
             setTitle(""); setDesc(""); setSubjectName(""); setSubjectCode(""); setStaffName(""); setFile(null);
             fetchDocuments();
-        } catch (err) {
-            Alert.alert("Error", "Could not upload material.");
+        } catch (err: any) {
+            console.error("Upload failed:", err.response?.data || err.message);
+            const serverMsg = err.response?.data?.error || err.response?.data?.detail || JSON.stringify(err.response?.data);
+            Alert.alert("Error", serverMsg ? `Server says: ${serverMsg}` : "Could not upload material. Please check your network.");
         } finally {
             setUploading(false);
         }

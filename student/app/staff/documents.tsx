@@ -101,8 +101,10 @@ export default function DocumentLibrary() {
       setUploadModalVisible(false);
       setTitle(""); setSubjectName(""); setSubjectCode(""); setFile(null);
       fetchDocuments();
-    } catch (err) {
-      Alert.alert("Upload Error", "Failed to sync material.");
+    } catch (err: any) {
+      console.error("Upload failed:", err.response?.data || err.message);
+      const serverMsg = err.response?.data?.error || err.response?.data?.detail || JSON.stringify(err.response?.data);
+      Alert.alert("Upload Error", serverMsg ? `Server says: ${serverMsg}` : "Failed to sync material. Please check your connection.");
     } finally { setUploading(false); }
   };
 
