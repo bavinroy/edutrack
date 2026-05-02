@@ -144,6 +144,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
                  designation="HOD" if user.role == User.Roles.DEPT_ADMIN else "Staff"
              )
         
+        # Assign permissions (New)
+        from accounts.utils import assign_role_permissions
+        assign_role_permissions(user)
+        
         return user
 
 class BulkUploadSerializer(serializers.Serializer):

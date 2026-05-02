@@ -10,7 +10,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     # fetch related user fields
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
-    student_id = serializers.CharField(source="roll_number", read_only=True)  # alias for roll_number
+    student_id = serializers.CharField(source="roll_no", read_only=True)  # alias for roll_no
     display_name = serializers.CharField(source="user.display_name", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
@@ -18,14 +18,17 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source="user.get_role_display", read_only=True)
     last_login = serializers.DateTimeField(source="user.last_login", read_only=True)
     
-    # Fetch academic info safely
-    department = serializers.SerializerMethodField()
-    year = serializers.SerializerMethodField()
-    semester = serializers.SerializerMethodField()
-    course = serializers.SerializerMethodField()
+    # Map phone_number to mobile_number for frontend compatibility
+    phone_number = serializers.CharField(source="mobile_number", read_only=True)
+    
+    # Fetch academic info
+    department = serializers.CharField(source="department.name", read_only=True)
+    course = serializers.CharField(read_only=True)
+    year = serializers.IntegerField(read_only=True)
+    semester = serializers.IntegerField(read_only=True)
 
     class Meta:
-        model = StudentProfile
+        model = Student
         fields = [
             "username",
             "email",
@@ -53,57 +56,22 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.avatar.url)
         return None
 
-    def get_department(self, obj):
-        if obj.department:
-            return obj.department
-        
-        legacy_name = None
-        if obj.user and obj.user.department:
-            legacy_name = obj.user.department.name
-        
-        if legacy_name and " in " in legacy_name:
-            return legacy_name.split(" in ")[1]
-        return legacy_name
-
-    def get_year(self, obj):
-        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
-            return obj.user.student_account.year
-        return obj.year # fallback to studentprofile field
-
-    def get_semester(self, obj):
-        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
-            return obj.user.student_account.semester
-        return None
-
-    def get_course(self, obj):
-        if obj.course:
-            return obj.course
-
-        legacy_course = None
-        if obj.user and hasattr(obj.user, 'student_account') and obj.user.student_account:
-            legacy_course = obj.user.student_account.course
-        
-        if legacy_course and " in " in legacy_course:
-            return legacy_course.split(" in ")[0]
-        return legacy_course
-
 
 class UpdateStudentProfileSerializer(serializers.ModelSerializer):
     """Only allow updating non-sensitive fields"""
     first_name = serializers.CharField(source="user.first_name", required=False)
     last_name = serializers.CharField(source="user.last_name", required=False)
     email = serializers.EmailField(source="user.email", required=False)
+    # Map phone_number to mobile_number
+    phone_number = serializers.CharField(source="mobile_number", required=False)
 
     class Meta:
-        model = StudentProfile
+        model = Student
         fields = [
             "first_name",
             "last_name",
             "email",
             "phone_number",
-            "department",
-            "course",
-            "year",
             "avatar",
         ]
 
@@ -117,13 +85,6 @@ class UpdateStudentProfileSerializer(serializers.ModelSerializer):
                 setattr(user, attr, value)
             user.save()
 
-            # SYNC: If avatar is being updated, also update the accounts.Student model
-            if 'avatar' in validated_data:
-                new_avatar = validated_data['avatar']
-                if hasattr(user, 'student_account') and user.student_account:
-                    user.student_account.avatar = new_avatar
-                    user.student_account.save()
-            
         return super().update(instance, validated_data)
 
 

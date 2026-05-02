@@ -5,9 +5,10 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from student_profile.models import StudentProfile, Feedback
+from student_profile.models import Feedback
 from student_profile.serializers import StudentProfileSerializer, UpdateStudentProfileSerializer
 from django.contrib.auth import get_user_model
+from accounts.models import Student
 from student_profile.serializers import CreateStaffSerializer, CreateStudentSerializer
 
 
@@ -24,12 +25,20 @@ def get_student_profile(request):
     logger.info(f"Fetching profile for user: {user.username}")
 
     try:
-        profile = StudentProfile.objects.get(user=user)
-    except StudentProfile.DoesNotExist:
-        # Optionally auto-create profile
-        default_roll = f"user_{user.id}"
-        profile = StudentProfile.objects.create(user=user, roll_number=default_roll)
-        logger.info(f"Auto-created profile for user {user.username} with roll_number={default_roll}")
+        # Use accounts.models.Student instead of StudentProfile
+        profile = Student.objects.get(user=user)
+    except Student.DoesNotExist:
+        # Optionally auto-create profile if user is a student
+        if user.role == User.Roles.DEPT_STUDENT:
+            profile = Student.objects.create(
+                user=user, 
+                roll_no=user.username,
+                department=user.department,
+                course="N/A"
+            )
+            logger.info(f"Auto-created Student record for user {user.username}")
+        else:
+            return Response({"detail": "Only students have a student profile."}, status=status.HTTP_403_FORBIDDEN)
 
     serializer = StudentProfileSerializer(profile, context={"request": request})
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -45,9 +54,9 @@ def update_student_profile(request):
     logger.info(f"Updating profile for user: {user.username}, files={list(request.FILES.keys())}")
 
     try:
-        profile = StudentProfile.objects.get(user=user)
-    except StudentProfile.DoesNotExist:
-        return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        profile = Student.objects.get(user=user)
+    except Student.DoesNotExist:
+        return Response({"detail": "Student record not found"}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = UpdateStudentProfileSerializer(profile, data=request.data, partial=True, context={"request": request})
     if serializer.is_valid():

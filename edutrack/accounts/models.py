@@ -406,6 +406,7 @@ class UserCreationRequest(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="user_creation_requests", null=True, blank=True)
     file = models.FileField(upload_to="user_creation_requests/")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    role = models.CharField(max_length=20, null=True, blank=True) # Target role for bulk upload
     admin_comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

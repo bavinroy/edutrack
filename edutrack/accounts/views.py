@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
 
 # Models
+from accounts.utils import assign_role_permissions
 from Staff_profile.models import StaffProfile 
 from accounts.models import (
     User, Student, Document, TimeTable, Letter, 
@@ -52,7 +53,11 @@ class TimeTableListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = self.request.user
+        serializer.save(
+            created_by=user,
+            department=user.department if hasattr(user, 'department') else None
+        )
 
 
 class TimeTableRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -489,41 +494,6 @@ class AdminActionView(generics.UpdateAPIView):
  
 
 
-
-# 3. Principal see only requests forwarded by Admin (admin="approved" AND principal="pending")
-# Removed duplicates (moved to later in file)
-
-    def patch(self, request, *args, **kwargs):
-        req = self.get_object()
-        new_status = request.data.get("principal_status")
-        comment = request.data.get("principal_comment", "")
-
-        if new_status in ['approved', 'rejected']:
-             req.principal_status = new_status
-             req.principal_comment = comment
-             if new_status == 'rejected':
-                 req.rejection_reason = comment
-             req.save()
-             
-             RequestHistory.objects.create(
-                request=req,
-                user=request.user,
-                action=f"Principal {new_status}",
-                status=new_status,
-            )
-
-             create_notification(
-                recipient=req.student,
-                title=f"Principal Review: {new_status.capitalize()}",
-                message=f"Your request '{req.letter.title}' was {new_status} by the Principal.",
-                target_url="/student/requests"
-             )
-
-             return Response(RequestSerializer(req).data)
-        
-        return Response({"error": "Invalid Status"}, status=status.HTTP_400_BAD_REQUEST)
-
-
 # ✅ List notices for the specific audience
 class NoticeListView(generics.ListAPIView):
     serializer_class = NoticeSerializer
@@ -820,7 +790,8 @@ class BulkUploadUsersView(APIView):
                  uploaded_by=user,
                  department=user.department,
                  file=file,
-                 status="pending"
+                 status="pending",
+                 role=target_role
              )
              return Response({
                  "message": "Bulk upload request submitted for verification.", 
@@ -1108,7 +1079,7 @@ class UserCreationRequestPreviewView(BulkUploadUsersView):
              # Use req.department as override to simulate the upload context correctly
              return self.process_bulk_upload_file(
                  req.file, 
-                 None, 
+                 req.role, 
                  True, 
                  user, 
                  department_override=req.department
@@ -1225,7 +1196,7 @@ class UserCreationRequestActionView(APIView):
             
             response = view.process_bulk_upload_file(
                 req.file, 
-                target_role=None, 
+                target_role=req.role, 
                 is_preview=False, 
                 user=request.user, 
                 department_override=req.department
@@ -1271,51 +1242,7 @@ class UserCreationRequestClearView(APIView):
         count, _ = UserCreationRequest.objects.filter(uploaded_by=request.user).delete()
         return Response({"message": f"Deleted {count} requests"}, status=status.HTTP_200_OK)
 
-def assign_role_permissions(user):
-    """
-    Helper to assign default permissions based on role.
-    Replicates logic from CustomUserAdmin.save_model
-    """
-    from django.contrib.auth.models import Permission
-    from django.contrib.contenttypes.models import ContentType
-    from accounts.models import Student, Notice, Document, Letter, Request, Department, User
 
-    if user.role == User.Roles.DEPT_ADMIN:
-        # Full Management: User, Student, Notice, Document, Letter, Request
-        manage_models = [User, Student, Notice, Document, Letter, Request]
-        perms_to_add = []
-        
-        for model_cls in manage_models:
-            ct = ContentType.objects.get_for_model(model_cls)
-            p_list = Permission.objects.filter(content_type=ct, codename__in=[
-                f'add_{model_cls._meta.model_name}',
-                f'change_{model_cls._meta.model_name}',
-                f'delete_{model_cls._meta.model_name}',
-                f'view_{model_cls._meta.model_name}'
-            ])
-            perms_to_add.extend(p_list)
-            
-        # View Department
-        dept_ct = ContentType.objects.get_for_model(Department)
-        perms_to_add.extend(Permission.objects.filter(content_type=dept_ct, codename='view_department'))
-        
-        user.user_permissions.add(*perms_to_add)
-
-    elif user.role == User.Roles.DEPT_STAFF:
-        # Manage Student
-        student_ct = ContentType.objects.get_for_model(Student)
-        student_perms = Permission.objects.filter(content_type=student_ct, codename__in=[
-            'add_student', 'change_student', 'delete_student', 'view_student'
-        ])
-        
-        # Manage User (Add/Change/View)
-        user_ct = ContentType.objects.get_for_model(User)
-        user_perms = Permission.objects.filter(content_type=user_ct, codename__in=[
-            'add_user', 'change_user', 'view_user' # Removed delete_user for Staff safety usually, but matches admin logic
-        ])
-        
-        user.user_permissions.add(*student_perms)
-        user.user_permissions.add(*user_perms)
 
 class ParseTimetableView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -1792,6 +1719,13 @@ class PrincipalActionView(generics.UpdateAPIView):
             user=request.user,
             action=f"Principal {req.principal_status}",
             status=req.principal_status,
+        )
+
+        create_notification(
+            recipient=req.student,
+            title=f"Principal Review: {req.principal_status.capitalize()}",
+            message=f"Your request '{req.letter.title}' was {req.principal_status} by the Principal.",
+            target_url="/student/requests"
         )
         return Response(RequestSerializer(req).data)
 
