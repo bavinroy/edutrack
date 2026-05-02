@@ -14,7 +14,7 @@ class StaffProfile(models.Model):
         blank=True
     )
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    department = models.CharField(max_length=50, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
     designation = models.CharField(max_length=50, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
     avatar = models.ImageField(upload_to=staff_avatar_upload_path, blank=True, null=True)

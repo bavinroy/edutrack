@@ -328,6 +328,13 @@ class CustomUserAdmin(UserAdmin):
                                     course=department.name,
                                     department=department
                                 )
+                            elif role in [User.Roles.DEPT_STAFF, User.Roles.DEPT_ADMIN]:
+                                from Staff_profile.models import StaffProfile
+                                StaffProfile.objects.create(
+                                    user=user,
+                                    department=department.name if department else "General",
+                                    designation="HOD" if role == User.Roles.DEPT_ADMIN else "Staff"
+                                )
                             
                             success_count += 1
 

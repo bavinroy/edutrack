@@ -576,32 +576,46 @@ class StaffScheduleView(APIView):
             if s_input.isdigit():
                  subject_instance = Subject.objects.filter(id=int(s_input)).first()
             else:
-                 # Try finding by name. 
-                 # If user.department is set, prioritize that, but failing that, global find?
-                 # Assuming Subject names are unique-ish or just pick first.
-                 subject_instance = Subject.objects.filter(name__iexact=s_input).first()
+                 # Try finding by name. Prioritize user's department if available.
+                 if user.department:
+                     subject_instance = Subject.objects.filter(name__iexact=s_input, department=user.department).first()
+                 
+                 if not subject_instance:
+                     subject_instance = Subject.objects.filter(name__iexact=s_input).first()
                  
             if not subject_instance and s_input:
-                 # Should we return error?
-                 return Response({"error": f"Subject '{s_input}' not found. Please ask Admin to add it."}, status=400)
+                 return Response({
+                     "error": f"Subject '{s_input}' not found in database.",
+                     "detail": "Please ensure the subject name matches exactly or ask your Admin to create it."
+                 }, status=400)
 
         department = user.department if user.department else None
         
-        timetable, created = TimeTable.objects.get_or_create(
-            class_name=class_name,
-            section=section,
-            year=year,
-            department=department,
-            defaults={
-                'title': f"{class_name} {section}",
-                'status': 'published',
-                'created_by': user
-            }
-        )
+        # Use get_or_create but handle MultipleObjectsReturned just in case
+        try:
+            timetable, created = TimeTable.objects.get_or_create(
+                class_name=class_name,
+                section=section,
+                year=year,
+                department=department,
+                defaults={
+                    'title': f"{class_name} {section}",
+                    'status': 'published',
+                    'created_by': user
+                }
+            )
+        except Exception: # Handle MultipleObjectsReturned or any DB error
+            timetable = TimeTable.objects.filter(
+                class_name=class_name,
+                section=section,
+                year=year,
+                department=department
+            ).first()
 
+        # Slot conflict check: check if THIS SLOT is taken by someone ELSE
         existing = ScheduleEntry.objects.filter(timetable=timetable, day=day, period_number=period).exclude(staff=user).first()
         if existing and existing.staff:
-            return Response({"error": f"Slot already taken by {existing.staff.username}"}, status=400)
+            return Response({"error": f"Slot already taken by {existing.staff.display_name or existing.staff.username}"}, status=400)
             
         entry, _ = ScheduleEntry.objects.update_or_create(
             timetable=timetable,
@@ -616,7 +630,7 @@ class StaffScheduleView(APIView):
             }
         )
         
-        return Response({"message": "Schedule updated", "entry_id": entry.id})
+        return Response({"message": "Schedule updated successfully", "entry_id": entry.id})
 
 
     def get(self, request):

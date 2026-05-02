@@ -196,9 +196,17 @@ def login_view(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def whoami(request):
+    user = request.user
     return Response({
-        "username": request.user.username,
-        "role": request.user.role
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+        "role": user.role,
+        "department": {
+            "id": user.department.id if user.department else None,
+            "name": user.department.name if user.department else "General"
+        } if user.department else None
     })
 
 
@@ -252,7 +260,11 @@ class DocumentUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = DocumentSerializer(data=request.data)
+        data = request.data.copy()
+        if not data.get('staff_name'):
+             data['staff_name'] = request.user.display_name or request.user.username
+        
+        serializer = DocumentSerializer(data=data)
         if serializer.is_valid():
             serializer.save(uploaded_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1043,6 +1055,14 @@ class BulkUploadUsersView(APIView):
                                 blood_group=str(blood) if not pd.isna(blood) else None,
                                 address=str(addr) if not pd.isna(addr) else None,
                                 scholar_type=str(scholar) if not pd.isna(scholar) else None
+                            )
+                        
+                        elif row_role in [User.Roles.DEPT_STAFF, User.Roles.DEPT_ADMIN]:
+                            # Create StaffProfile for bulk uploaded staff
+                            StaffProfile.objects.create(
+                                user=new_user,
+                                department=final_department.name if final_department else "General",
+                                designation="HOD" if row_role == User.Roles.DEPT_ADMIN else "Staff"
                             )
 
                         assign_role_permissions(new_user)

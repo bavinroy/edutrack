@@ -108,8 +108,8 @@ class ScheduleEntry(models.Model):
     timetable = models.ForeignKey(TimeTable, on_delete=models.CASCADE, related_name="entries")
     day = models.CharField(max_length=15, choices=DAY_CHOICES)
     period_number = models.IntegerField()
-    start_time = models.TimeField(null=True, blank=True)
-    end_time = models.TimeField(null=True, blank=True)
+    start_time = models.CharField(max_length=20, null=True, blank=True)
+    end_time = models.CharField(max_length=20, null=True, blank=True)
     
     subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True)
     staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="schedule_entries")
@@ -229,8 +229,8 @@ class Student(models.Model):
         on_delete=models.CASCADE,
         related_name="student_account", null= True, blank= True
     )
-    roll_no = models.CharField(max_length=20, unique=True)
-    register_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    roll_no = models.CharField(max_length=50, unique=True)
+    register_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/students/", null=True, blank=True)
     
     # Personal Details
@@ -335,10 +335,10 @@ class ClassAdvisor(models.Model):
 class Document(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="documents")
     title = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    subject_name = models.CharField(max_length=255)
-    subject_code = models.CharField(max_length=50)
-    staff_name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    subject_name = models.CharField(max_length=255, blank=True, null=True)
+    subject_code = models.CharField(max_length=50, blank=True, null=True)
+    staff_name = models.CharField(max_length=255, blank=True, null=True)
     file = models.FileField(upload_to="documents/")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -403,7 +403,7 @@ class UserCreationRequest(models.Model):
         ("rejected", "Rejected"),
     ]
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_creation_requests")
-    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="user_creation_requests")
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="user_creation_requests", null=True, blank=True)
     file = models.FileField(upload_to="user_creation_requests/")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     admin_comment = models.TextField(blank=True, null=True)
