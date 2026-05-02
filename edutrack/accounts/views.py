@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
 
 # Models
-from accounts.utils import assign_role_permissions
+from accounts.utils.permissions import assign_role_permissions
 from Staff_profile.models import StaffProfile 
 from accounts.models import (
     User, Student, Document, TimeTable, Letter, 

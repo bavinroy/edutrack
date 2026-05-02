@@ -145,7 +145,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
              )
         
         # Assign permissions (New)
-        from accounts.utils import assign_role_permissions
+        from accounts.utils.permissions import assign_role_permissions
         assign_role_permissions(user)
         
         return user
