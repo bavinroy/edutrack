@@ -263,16 +263,32 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 # Staff upload (no extra restriction, just logged in)
 class DocumentUploadView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, *args, **kwargs):
+        print(f"DEBUG: Material Upload Attempt by {request.user.username}")
+        print(f"DEBUG: Request Data Keys: {list(request.data.keys())}")
+        print(f"DEBUG: Files: {list(request.FILES.keys())}")
+
         data = request.data.copy()
         if not data.get('staff_name'):
              data['staff_name'] = request.user.display_name or request.user.username
         
-        serializer = DocumentSerializer(data=data)
+        # Ensure 'file' is present
+        if 'file' not in request.FILES and 'file' not in data:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = DocumentSerializer(data=data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(uploaded_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save(uploaded_by=request.user)
+                print(f"DEBUG: Material Upload Success: {serializer.data.get('id')}")
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                print(f"DEBUG: Material Save Exception: {str(e)}")
+                return Response({"error": f"Failed to save to storage: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        print(f"DEBUG: Material Validation Failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class DocumentListView(APIView):
