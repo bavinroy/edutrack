@@ -15,10 +15,10 @@ class StudentProfile(models.Model):
         null=True,
         blank=True
     )
-    roll_number = models.CharField(max_length=20, unique=True)  # Unique roll number
+    roll_number = models.CharField(max_length=50, unique=True)  # Unique roll number
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    department = models.CharField(max_length=50, blank=True, null=True)
-    course = models.CharField(max_length=50, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+    course = models.CharField(max_length=100, blank=True, null=True)
     year = models.IntegerField(blank=True, null=True)
     avatar = models.ImageField(upload_to=avatar_upload_path, blank=True, null=True)
 
